@@ -1,0 +1,12 @@
+
+*** These modified files were found in JOE when it aborted on Fri Oct  6 17:46:30 2023
+*** JOE was aborted because the terminal closed
+
+*** File '(Unnamed)'
+tunnel.s
+
+*** File '* Startup Log *'
+Processing '/etc/joe/joerc'...
+Processing '/etc/joe/ftyperc'...
+Finished processing /etc/joe/ftyperc
+Finished processing /etc/joe/joerc
