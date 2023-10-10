@@ -46,29 +46,18 @@ Inizio:
 
   jsr GENERATE_TRANSFORMATION_TABLE
 
-; START OF MAIN LOOP
-mouse:
-  cmpi.b              #$ff,$dff006                                                   ; Siamo alla linea 255?
-  ;bne.s               mouse                                                          ; Se non ancora, non andare avanti
-;.loop; Wait for vblank
-;	move.l $dff004,d0
-;	and.l #$1ff00,d0
-;	cmp.l #303<<8,d0
-;	bne.b .loop
+  ; set colors
+  move.w #0,$dff180
+  move.w #$f00,$dff182
+  move.w #$0f0,$dff184
+  move.w #$0ff,$dff186
+  ;move.w #0,$dff180
+  ;move.w #0,$dff180
 
-
-Aspetta:
-  cmpi.b            #$ff,$dff006                                                   ; Siamo alla linea 255?
-  ;beq.s             Aspetta
-  
-  neg.l             SCREEN_OFFSET
-  move.l            SCREEN_OFFSET,d1
-  move.l            SCREEN_PTR_0,SCREEN_PTR_OTHER_0
-  move.l            SCREEN_PTR_1,SCREEN_PTR_OTHER_1
-  add.l             d1,SCREEN_PTR_0
-  add.l             d1,SCREEN_PTR_1  
-  
-  move.w #$F00,$dff180
+    ;dc.w	$0180,$000	; color0 - SFONDO
+	;dc.w	$0182,$f00	; color1 - SCRITTE
+	;dc.w	$0184,$0f0	; color2 - SCRITTE
+	;dc.w	$0186,$00f	; color3 - SCRITTE
 
   lea       TEXTURE_DATA,a2
   clr.w     CURRENT_X
@@ -98,22 +87,50 @@ xor_texture_x:
   STROKE #2
   move.w #$FFFF,(a2)+
 .printpoint
-	jsr               POINT
+	;jsr               POINT
   addi.w            #1,CURRENT_X
   dbra              d6,xor_texture_x
   clr.w             CURRENT_X
   addi.w            #1,CURRENT_Y
   dbra              d7,xor_texture_y
-  move.w #$0F0,$dff180
+  move.w #$0FF,$dff180
 
+
+; START OF MAIN LOOP
+mouse:
+  cmpi.b              #$ff,$dff006                                                   ; Siamo alla linea 255?
+  bne.s               mouse                                                          ; Se non ancora, non andare avanti
+;.loop; Wait for vblank
+;	move.l $dff004,d0
+;	and.l #$1ff00,d0
+;	cmp.l #303<<8,d0
+;	bne.b .loop
+
+
+Aspetta:
+  cmpi.b            #$ff,$dff006                                                   ; Siamo alla linea 255?
+  beq.s             Aspetta
+  
+  neg.l             SCREEN_OFFSET
+  move.l            SCREEN_OFFSET,d1
+  move.l            SCREEN_PTR_0,SCREEN_PTR_OTHER_0
+  move.l            SCREEN_PTR_1,SCREEN_PTR_OTHER_1
+  add.l             d1,SCREEN_PTR_0
+  add.l             d1,SCREEN_PTR_1  
+  
+  move.w #$FF0,$dff180
+
+  
   ; star drawing the tunnel
   ;bra.w     tunnelend
-  lea       TEXTURE_DATA,a2
-    lea      TRANSFORMATION_TABLE_DISTANCE,a3
+  lea       TEXTURE_DATA(PC),a2
+  lea       TRANSFORMATION_TABLE_DISTANCE(PC),a3
 
-  DEBUG  7777
-  clr.w     CURRENT_X
-  clr.w     CURRENT_Y
+  ;DEBUG  7777
+  ;clr.w     CURRENT_X
+  moveq #0,d3
+  ;clr.w     CURRENT_Y
+  moveq #0,d5
 
   ; y cycle start
   moveq     #SCREEN_RES_Y-1,d7
@@ -123,16 +140,18 @@ tunnel_y:
   moveq     #SCREEN_RES_X-1,d6
 tunnel_x:
 
-  move.w    CURRENT_X,d0
-	move.w    CURRENT_Y,d1
+  ;move.w    CURRENT_X,d0
+	move.w    d3,d0
+  ;move.w    CURRENT_Y,d1
+  move.w    d5,d1
 
   ; read transformation table
   move.w    (a3)+,d2
 
   ; add shift x
 
-  add.w    FRAME_COUNTER,d2
-  andi.w   #$F,d2
+  add.w     FRAME_COUNTER,d2
+  andi.w    #$F,d2
 
   ; mult by 2 because each point on the texture is represented by 2 bytes
   lsl.w     #1,d2
@@ -147,27 +166,32 @@ tunnel_x:
   add.w     d2,d4
   ;DEBUG 1234
 
-  move.w    0(a2,d4.w),d3
-  tst.w d3
+  ;move.w    0(a2,d4.w),d4
+  tst.w 0(a2,d4.w)
   beq.s     tunnel_pixel_0
   STROKE #2
   bra.s     print_tunnel_pixel
 tunnel_pixel_0:
-  DEBUG 4321
+  ;DEBUG 4321
   STROKE #1
 
 print_tunnel_pixel:
-  move.w    CURRENT_X,d0
-	move.w    CURRENT_Y,d1
-  add.w #100,d0
-  add.w #100,d1
-  jsr               POINT_FORCE
+  ;move.w    CURRENT_X,d0
+	move.w    d3,d0
+  ;move.w    CURRENT_Y,d1
+  move.w    d5,d1
+  ;add.w #100,d0
+  ;add.w #100,d1
+  bsr.w               POINT_FORCE
 
 
-  addi.w    #1,CURRENT_X
+  ;addi.w    #1,CURRENT_X
+  addq      #1,d3
   dbra      d6,tunnel_x
-  clr.w     CURRENT_X
-  addi.w    #1,CURRENT_Y
+  ;move.w    #0,CURRENT_X
+  moveq     #0,d3
+  ;addi.w    #1,CURRENT_Y
+  addq      #1,d5
   dbra      d7,tunnel_y
 
 tunnelend:
@@ -274,7 +298,7 @@ POINTINCOPPERLIST_FUNCT:
 
 POINT_FORCE:
 
-  bsr.w                                    point_execute_transformation
+  ;bsr.w                                    point_execute_transformation
 
 	; start plot routine
   lea                                      PLOTREFS,a1
@@ -421,10 +445,10 @@ Sprite7pointers:
   dc.w       $94,$00d0                                                 ; DdfStop
   dc.w       $102,0
 
-  dc.w	$0180,$000	; color0 - SFONDO
-	dc.w	$0182,$f00	; color1 - SCRITTE
-	dc.w	$0184,$0f0	; color2 - SCRITTE
-	dc.w	$0186,$00f	; color3 - SCRITTE
+  ;dc.w	$0180,$000	; color0 - SFONDO
+	;dc.w	$0182,$f00	; color1 - SCRITTE
+	;dc.w	$0184,$0f0	; color2 - SCRITTE
+	;dc.w	$0186,$00f	; color3 - SCRITTE
   dc.w  $104,$0000
 
   dc.w       $108,0                                                    ; Bpl1Mod
