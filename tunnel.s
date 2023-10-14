@@ -118,7 +118,7 @@ Aspetta:
   add.l             d1,SCREEN_PTR_0
   add.l             d1,SCREEN_PTR_1  
   
-  move.w #$FF0,$dff180
+  ;move.w #$FF0,$dff180
 
   
   ; star drawing the tunnel
@@ -131,6 +131,9 @@ Aspetta:
   moveq #0,d3
   ;clr.w     CURRENT_Y
   moveq #0,d5
+
+  SETBITPLANE                              0,a6
+  ;move.l  SCREEN_PTR_0,a6
 
   ; y cycle start
   moveq     #SCREEN_RES_Y-1,d7
@@ -166,23 +169,32 @@ tunnel_x:
   add.w     d2,d4
   ;DEBUG 1234
 
-  ;move.w    0(a2,d4.w),d4
-  tst.w 0(a2,d4.w)
-  beq.s     tunnel_pixel_0
-  STROKE #2
-  bra.s     print_tunnel_pixel
-tunnel_pixel_0:
-  ;DEBUG 4321
-  STROKE #1
+  ;move.b 0(a2,d4.w),(a6)+
+  btst #0,d3
+  bne.s dispari
 
-print_tunnel_pixel:
-  ;move.w    CURRENT_X,d0
-	move.w    d3,d0
-  ;move.w    CURRENT_Y,d1
-  move.w    d5,d1
-  ;add.w #100,d0
-  ;add.w #100,d1
-  bsr.w               POINT_FORCE
+
+  tst.w 0(a2,d4.w)
+  beq.s alessio
+  move.b #0,40*256(a6)
+  move.b #$F0,(a6)
+  bra.s prossimo
+alessio:
+  move.b #$0,(a6)
+  move.b #$F0,40*256(a6)
+  bra.s  prossimo
+
+dispari:
+  tst.w 0(a2,d4.w)
+  beq.s alessio2
+  ori.b #$F,(a6)+
+  bra.s prossimo
+
+alessio2:
+  ori.b #$F,40*256(a6)
+  addq #1,a6
+
+prossimo:
 
 
   ;addi.w    #1,CURRENT_X
@@ -190,6 +202,8 @@ print_tunnel_pixel:
   dbra      d6,tunnel_x
   ;move.w    #0,CURRENT_X
   moveq     #0,d3
+    adda.l    #8+40*2,a6
+
   ;addi.w    #1,CURRENT_Y
   addq      #1,d5
   dbra      d7,tunnel_y
@@ -217,114 +231,99 @@ exit_demo:
   bsr.w               Restore_all
   clr.l               d0
   rts                                                                                ; USCITA DAL PROGRAMMA
+
+
+; Routine GENERATE_TRANSFORMATION_TABLE
+; This routine generates the precalculated table used for the X axis
+; It's just a translation for this C code:
+; void generateTransformationTable() {
+;   int x, y;
+;   for (y = 0; y < height; y++) {
+;       for (int x = 0; x < width; x++) {
+;           // Calcola la distanza
+;           double distance = sqrt((x - width / 2.0) * (x - width / 2.0) + (y - height / 2.0) * (y - height / 2.0));
+;           int inverse_distance = (int) (RATIOX * texHeight / distance);
+;           int inverse_distance_modded = inverse_distance % texHeight;
+;           printf ("X:%d - Y:%d : %f %d %d\n",x,y,distance,inverse_distance,inverse_distance_modded);
+;       }
+;   }
+; }
+; Resulting table will be stored att addr TRANSFORMATION_TABLE_DISTANCE
+; 
 GENERATE_TRANSFORMATION_TABLE:
-  * var distance = int(currentSliderRatioXValue * texHeight / dist(x,y,width/2,height/2)) % texHeight;
+  lea       TRANSFORMATION_TABLE_DISTANCE(PC),a0
 
-  lea      TRANSFORMATION_TABLE_DISTANCE,a0
+  ; init x (d0) and y (d1) , for convenience instead starting from 0, we start from -SCREEN_RES_X/2 and we and
+  ; at SCREEN_RES/2, same for the Y axys
+  move.w    #SCREEN_RES_X/2*-1,d0
+  move.w    #SCREEN_RES_Y/2*-1,d1
 
-    ; init x (d0) and y (d0)
-    move.w  #SCREEN_RES_X,d0
-    lsr.w   #1,d0
-    neg.w   d0
-    move.w  #SCREEN_RES_Y,d1
-    lsr.w   #1,d1
-    neg.w   d1
-
-    ; first cycle - for each Y
-    moveq   #SCREEN_RES_Y-1,d7
+  ; first cycle - for each Y
+  moveq   #SCREEN_RES_Y-1,d7
 table_precalc_y:
 
-    ; second cycle - for each X
-    moveq   #SCREEN_RES_X-1,d6
+  ; second cycle - for each X
+  moveq   #SCREEN_RES_X-1,d6
 table_precalc_x:
 
-    move.w  d0,d2
-    move.w  d1,d3
+  move.w  d0,d2
+  move.w  d1,d3
 
-    muls    d2,d2
-    muls    d3,d3
+  muls    d2,d2
+  muls    d3,d3
 
-    add.w   d2,d3
+  add.w   d2,d3
 
-    ; start sqrt execution
-    move.w  #-1,d5
+  ; now d3 hold the result of (x - width / 2.0) * (x - width / 2.0) + (y - height / 2.0) * (y - height / 2.0)
+  ; let's start with sqrt calculation
+
+  ; start sqrt execution
+  move.w  #-1,d5
 qsqrt1:
-    addq    #2,d5
-    sub.w   d5,d3
-    bpl     qsqrt1
-    asr.w   #1,d5
-    move.w  d5,d3
-    ; end sqrt execution
+  addq    #2,d5
+  sub.w   d5,d3
+  bpl     qsqrt1
+  asr.w   #1,d5
+  move.w  d5,d3
+  ; end sqrt execution
 
-    ; if distance is zero let's say distance is 1
-    bne.s   distanceok
-    moveq   #1,d3
+  ; here d3 holds sqrt(distance)
+
+  ; sanity check, distance could be zero, we dont want to divide by zero, m68k doesnt like it
+  ; if distance is zero let's say distance is 1
+  bne.s   distanceok
+  moveq   #1,d3
 distanceok:
-    ; divide per texture height
-    move.l  #256*RATIOX*TEXTURE_HEIGHT,d2
-    tst.w   d3
-    bne.s   nodistancezero
-    nop
-nodistancezero:
-    divu    d3,d2
 
-    ; get integer part
-    lsr.w   #8,d2
+  ; start executing the following C code: int inverse_distance = (int) (RATIOX * texHeight / distance);
+  ; divide per texture height
+  move.l  #256*RATIOX*TEXTURE_HEIGHT,d2
+  divu    d3,d2
 
-    ;get the module
-    ext.l   d2
-    divu    #TEXTURE_HEIGHT,d2
-    swap    d2
+  ; get integer part
+  lsr.w   #8,d2
 
-    ; write into transformation table
-    move.w  d2,(a0)+
-    DEBUG 7777
+  ;get the module
+  ext.l   d2
+  divu    #TEXTURE_HEIGHT,d2
+  swap    d2
 
-    addq    #1,d0 ; increment x
-    dbra    d6,table_precalc_x ; next x iteration
+  ; write into transformation table
+  move.w  d2,(a0)+
 
-    addq    #1,d1 ; increment y
-    ;clr.w   d0 ; reset x
-    ;dream
-    move.w  #SCREEN_RES_X/2*-1,d0
-    dbra    d7,table_precalc_y
+  addq    #1,d0 ; increment x
+  dbra    d6,table_precalc_x ; next x iteration
 
+  addq    #1,d1 ; increment y
+  ;clr.w   d0 ; reset x
+  ;dream
+  move.w  #SCREEN_RES_X/2*-1,d0
+  dbra    d7,table_precalc_y
 
-    rts
+  rts
 
 POINTINCOPPERLIST_FUNCT:
   POINTINCOPPERLIST
-  rts
-
-POINT_FORCE:
-
-  ;bsr.w                                    point_execute_transformation
-
-	; start plot routine
-  lea                                      PLOTREFS,a1
-  add.w                                    d1,d1
-  move.w                                   0(a1,d1.w),d1
-  move.w                                   d0,d4
-  lsr.w                                    #3,d4
-  add.w                                    d4,d1
-  not.b                                    d0
-  btst.b                                   #0,STROKE_DATA
-  beq.s                                    point_force_no_bpl_0
-  SETBITPLANE                              0,a0
-  bset                                     d0,(a0,d1.w)
-  bra.s                                    point_force_no_bpl_00
-point_force_no_bpl_0:
-  SETBITPLANE                              0,a0
-  bclr                                     d0,(a0,d1.w)
-point_force_no_bpl_00:
-  btst.b                                   #1,STROKE_DATA
-  beq.s                                    point_force_no_bpl_1
-  SETBITPLANE                              1,a0
-  bset                                     d0,(a0,d1.w)
-  rts
-point_force_no_bpl_1:
-  SETBITPLANE                              1,a0
-  bclr                                     d0,(a0,d1.w)
   rts
 
 ;---------------------------------------------------------------
