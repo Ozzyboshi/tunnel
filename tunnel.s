@@ -383,6 +383,7 @@ Name:                 dc.b "graphics.library",0
 	include "AProcessing/libs/rasterizers/point.s"
 	include "AProcessing/libs/rasterizers/processing_bitplanes_fast.s"
 	include "AProcessing/libs/rasterizers/processing_table_plotrefs.s"
+	include "transformationtableY.raw"
 
 ;----------------------------------------------------------------
 
