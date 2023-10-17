@@ -47,9 +47,9 @@ Inizio:
   jsr GENERATE_TRANSFORMATION_TABLE
 
   ; set colors
-  move.w #0,$dff180
-  move.w #$f00,$dff182
-  move.w #$0f0,$dff184
+  move.w #$222,$dff180
+  move.w #$0,$dff182
+  move.w #$FFF,$dff184
   move.w #$0ff,$dff186
   ;move.w #0,$dff180
   ;move.w #0,$dff180
@@ -93,7 +93,7 @@ xor_texture_x:
   clr.w             CURRENT_X
   addi.w            #1,CURRENT_Y
   dbra              d7,xor_texture_y
-  move.w #$0FF,$dff180
+  ;move.w #$0FF,$dff180
 
 
 ; START OF MAIN LOOP
@@ -125,6 +125,7 @@ Aspetta:
   ;bra.w     tunnelend
   lea       TEXTURE_DATA(PC),a2
   lea       TRANSFORMATION_TABLE_DISTANCE(PC),a3
+  lea	      TRASFORMATION_TABLE_Y,a4
 
   ;DEBUG  7777
   ;clr.w     CURRENT_X
@@ -144,12 +145,15 @@ tunnel_y:
 tunnel_x:
 
   ;move.w    CURRENT_X,d0
-	move.w    d3,d0
+	;move.w    d3,d0
   ;move.w    CURRENT_Y,d1
-  move.w    d5,d1
+  ;move.w    d5,d1
 
-  ; read transformation table
+  ; read transformation table (distance table)
   move.w    (a3)+,d2
+
+  ; read transformation table (rotation table)
+  move.b    (a4)+,d1
 
   ; add shift x
 
@@ -209,7 +213,7 @@ prossimo:
   dbra      d7,tunnel_y
 
 tunnelend:
-    move.w #$000,$dff180
+    ;move.w #$000,$dff180
 
 
   
@@ -383,6 +387,7 @@ Name:                 dc.b "graphics.library",0
 	include "AProcessing/libs/rasterizers/point.s"
 	include "AProcessing/libs/rasterizers/processing_bitplanes_fast.s"
 	include "AProcessing/libs/rasterizers/processing_table_plotrefs.s"
+TRASFORMATION_TABLE_Y:
 	include "transformationtableY.raw"
 
 ;----------------------------------------------------------------
