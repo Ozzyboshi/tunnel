@@ -10,9 +10,9 @@ RATIOX EQU 30
 
   ; Place addr in d0 and the copperlist pointer addr in a1 before calling
 POINTINCOPPERLIST MACRO
-  move.w              d0,6(a1)
-  swap                d0
-  move.w              d0,2(a1)
+  move.w              d3,6(a1)
+  swap                d3
+  move.w              d3,2(a1)
   ENDM
   jmp Inizio
 
@@ -75,11 +75,11 @@ Aspetta:
   
   ; Switch Bitplanes for double buffering
   neg.l             SCREEN_OFFSET
-  move.l            SCREEN_OFFSET,d1
+  move.l            SCREEN_OFFSET,d3
   move.l            SCREEN_PTR_0,SCREEN_PTR_OTHER_0
   move.l            SCREEN_PTR_1,SCREEN_PTR_OTHER_1
-  add.l             d1,SCREEN_PTR_0
-  add.l             d1,SCREEN_PTR_1  
+  add.l             d3,SCREEN_PTR_0
+  add.l             d3,SCREEN_PTR_1  
   
   IFD COLORDEBUG
   move.w #$FF0,$dff180
@@ -97,11 +97,12 @@ Aspetta:
   moveq             #0,d5 ; reset current y variable
 
   SETBITPLANE       0,a6
+  SETBITPLANE       1,a5
   ;move.l  SCREEN_PTR_0,a6
 
   ; y cycle start
   ;moveq             #SCREEN_RES_Y-1,d7
-  move.w             #15,d7
+  move.w             #16,d7
 tunnel_y:
 
 ; x cycle start
@@ -146,14 +147,18 @@ tunnel_x:
   beq.s             printcolor1_even ; if color 1 has to be printed on screen
 
   ; we are here only in case the X is even and we must print color 1 (only first bitplane) >>> read pixel [d1][d2]
-  move.b            #0,40*256(a6)
-  move.b            #$F0,(a6)
+  ;move.b            #0,40*256(a6)
+  ;move.b            #$F0,(a6)
+  move.w #$F0,d0
+  moveq #$0,d1
   bra.s             next_pixel
 printcolor1_even:
 
   ; we are here only in case the X is even and we must print color 2 (only second bitplane) >>> read pixel [d1][d2]
-  move.b            #$0,(a6)
-  move.b            #$F0,40*256(a6)
+  ;move.b            #$0,(a6)
+  ;move.b            #$F0,40*256(a6)
+  moveq #$0,d0
+  move.w #$F0,d1
   bra.s             next_pixel
 
   ; if we are here X is off! set the low nibble of the byte and update a6
@@ -162,13 +167,19 @@ odd_x:
   beq.s             printcolor1_odd
 
   ; we are here only in case the X is odd and we must print color 1 (only first bitplane) >>> read pixel [d1][d2]
-  ori.b             #$F,(a6)+
-  bra.s             next_pixel
+  ;ori.b             #$F,(a6)+
+  ori.b #$F,d0
+  bra.s             print_pixel
 
 printcolor1_odd:
   ; we are here only in case the X is odd and we must print color 2 (only second bitplane) >>> read pixel [d1][d2]
-  ori.b             #$F,40*256(a6)
-  addq              #1,a6
+  ;ori.b             #$F,40*256(a6)
+  ;addq              #1,a6
+  ori.b #$F,d1
+
+print_pixel:
+  move.b             d0,(a6)+
+  move.b             d1,(a5)+
 
 next_pixel:
 
@@ -179,6 +190,7 @@ next_pixel:
   ; change scanline
   moveq             #0,d3
   adda.l            #8+40*2,a6
+  adda.l            #8+40*2,a5
   addq              #1,d5
   dbra              d7,tunnel_y
 tunnelend:
@@ -189,11 +201,11 @@ tunnelend:
 
   ; load bitplanes in copperlist
   lea               BPLPTR1,a1
-  move.l            SCREEN_PTR_0,d0
+  move.l            SCREEN_PTR_0,d3
   POINTINCOPPERLIST
 
   lea               BPLPTR2,a1
-  move.l            SCREEN_PTR_1,d0
+  move.l            SCREEN_PTR_1,d3
   POINTINCOPPERLIST
 
   ; increment the frame counter for animating
