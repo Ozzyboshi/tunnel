@@ -23,7 +23,7 @@ POINTINCOPPERLIST MACRO
 
 CURRENT_X:            dc.w      0
 CURRENT_Y:            dc.w      0
-FRAME_COUNTER:        dc.w      0
+;FRAME_COUNTER:        dc.w      0
 
 Inizio:
   bsr.w               Save_all
@@ -44,28 +44,22 @@ Inizio:
   move.w              d0,$1fc(a6)                                                    ; FMODE - NO AGA
   move.w              #$c00,$106(a6)                                                 ; BPLCON3 - NO AGA
 
-  jsr GENERATE_TRANSFORMATION_TABLE
+  ; Generate transformation table for distance
+  jsr                 GENERATE_TRANSFORMATION_TABLE
 
-  ; set colors
-  move.w #$222,$dff180
-  move.w #$0,$dff182
-  move.w #$FFF,$dff184
-  move.w #$0ff,$dff186
-  ;move.w #0,$dff180
-  ;move.w #0,$dff180
+  ; Set colors
+  move.w              #$222,$dff180
+  move.w              #$0,$dff182
+  move.w              #$FFF,$dff184
+  move.w              #$0ff,$dff186
 
-    ;dc.w	$0180,$000	; color0 - SFONDO
-	;dc.w	$0182,$f00	; color1 - SCRITTE
-	;dc.w	$0184,$0f0	; color2 - SCRITTE
-	;dc.w	$0186,$00f	; color3 - SCRITTE
+  ; Generate XOR texture (16px X 16px)
+  jsr                 XOR_TEXTURE
 
-  jsr XOR_TEXTURE
-
-
-; START OF MAIN LOOP
+; ******************************* START OF GAME LOOP ****************************
 mouse:
-  cmpi.b              #$ff,$dff006                                                   ; Siamo alla linea 255?
-  bne.s               mouse                                                          ; Se non ancora, non andare avanti
+  cmpi.b              #$ff,$dff006                                                   ; Are we at line 255?
+  bne.s               mouse                                                          ; Wait
 ;.loop; Wait for vblank
 ;	move.l $dff004,d0
 ;	and.l #$1ff00,d0
@@ -74,11 +68,12 @@ mouse:
 
 
 Aspetta:
-  cmpi.b            #$ff,$dff006                                                   ; Siamo alla linea 255?
+  cmpi.b            #$ff,$dff006                                                    ; Wait for exiting line 255
   beq.s             Aspetta
 
-  ;bra.w tunnelend
+  ;bra.w tunnelend  ; skip tunnel rendering
   
+  ; Switch Bitplanes for double buffering
   neg.l             SCREEN_OFFSET
   move.l            SCREEN_OFFSET,d1
   move.l            SCREEN_PTR_0,SCREEN_PTR_OTHER_0
@@ -86,106 +81,112 @@ Aspetta:
   add.l             d1,SCREEN_PTR_0
   add.l             d1,SCREEN_PTR_1  
   
-  ;move.w #$FF0,$dff180
+  IFD COLORDEBUG
+  move.w #$FF0,$dff180
+  ENDC
 
   
-  ; star drawing the tunnel
   ;bra.w     tunnelend
-  lea       TEXTURE_DATA(PC),a2
-  lea       TRANSFORMATION_TABLE_DISTANCE(PC),a3
-  lea	      TRASFORMATION_TABLE_Y,a4
 
-  ;DEBUG  7777
-  ;clr.w     CURRENT_X
-  moveq #0,d3
-  ;clr.w     CURRENT_Y
-  moveq #0,d5
+  ; *********************************** Start of tunnel rendering *********************************
+  lea               TEXTURE_DATA(PC),a2
+  lea               TRANSFORMATION_TABLE_DISTANCE(PC),a3
+  lea	              TRASFORMATION_TABLE_Y,a4
 
-  SETBITPLANE                              0,a6
+  moveq             #0,d3 ; reset current x variable
+  moveq             #0,d5 ; reset current y variable
+
+  SETBITPLANE       0,a6
   ;move.l  SCREEN_PTR_0,a6
 
   ; y cycle start
-  moveq     #SCREEN_RES_Y-1,d7
+  ;moveq             #SCREEN_RES_Y-1,d7
+  move.w             #12,d7
 tunnel_y:
 
 ; x cycle start
-  moveq     #SCREEN_RES_X-1,d6
+  moveq             #SCREEN_RES_X-1,d6
 tunnel_x:
 
-  ;move.w    CURRENT_X,d0
-	;move.w    d3,d0
-  ;move.w    CURRENT_Y,d1
-  ;move.w    d5,d1
-
   ; read transformation table (distance table)
-  move.w    (a3)+,d2
+  move.w            (a3)+,d2
 
   ; read transformation table (rotation table)
-  move.b    (a4)+,d1
+  move.b            (a4)+,d1
 
-  ; add shift x
+  ; add shift x (add frame counter to what was read from the distance table and perform a %16)
+  ;add.w             FRAME_COUNTER,d2
+  ; frame counter is on the upper part of d7 to save access memory
+  swap              d7
+  add.w             d7,d2
+  swap              d7
 
-  add.w     FRAME_COUNTER,d2
-  andi.w    #$F,d2
+  andi.w            #$F,d2
 
-  ; mult by 2 because each point on the texture is represented by 2 bytes
-  lsl.w     #1,d2
+  ; mult by 2 because each point on the texture is represented by 2 bytes - TODO: this could be avoided multiplying the distance table by 2 and mod by 32?
+  lsl.w             #1,d2
 
-  ; read pixel [d1][d2]
+  ; read rotation value and %16
+  move.w            d1,d4
+  andi.w            #$F,d4 ; module %16
+  ;mulu             #TEXTURE_HEIGHT*2,d4 ; d4 holds y offset
+  lsl.w             #5,d4 ; mult by 32 because each line on the distance table is 32 bytes?
   
-  move.w    d1,d4
-  andi.w    #$F,d4 ; module %16
-  ;mulu      #TEXTURE_HEIGHT*2,d4 ; d4 holds y offset
-  lsl.w      #5,d4
+  ; now d4 holds the correct offset of the table in the lower word
+  add.w             d2,d4
+
+  ; check if the X we are currently rendering is odd or even
+  btst              #0,d3
+  bne.s             odd_x
+
+  ; if we are here X is even! set the high nibble of the byte
+
+  tst.w             0(a2,d4.w) ; check if we have to print color 1 or color 2
+  beq.s             printcolor1_even ; if color 1 has to be printed on screen
+
+  ; we are here only in case the X is even and we must print color 1 (only first bitplane) >>> read pixel [d1][d2]
+  move.b            #0,40*256(a6)
+  move.b            #$F0,(a6)
+  bra.s             next_pixel
+printcolor1_even:
+
+  ; we are here only in case the X is even and we must print color 2 (only second bitplane) >>> read pixel [d1][d2]
+  move.b            #$0,(a6)
+  move.b            #$F0,40*256(a6)
+  bra.s             next_pixel
+
+  ; if we are here X is off! set the low nibble of the byte and update a6
+odd_x:
+  tst.w             0(a2,d4.w)
+  beq.s             printcolor1_odd
+
+  ; we are here only in case the X is odd and we must print color 1 (only first bitplane) >>> read pixel [d1][d2]
+  ori.b             #$F,(a6)+
+  bra.s             next_pixel
+
+printcolor1_odd:
+  ; we are here only in case the X is odd and we must print color 2 (only second bitplane) >>> read pixel [d1][d2]
+  ori.b             #$F,40*256(a6)
+  addq              #1,a6
+
+next_pixel:
+
+  ; increment X position by one
+  addq              #1,d3
+  dbra              d6,tunnel_x
   
-  add.w     d2,d4
-  ;DEBUG 1234
-
-  ;move.b 0(a2,d4.w),(a6)+
-  btst #0,d3
-  bne.s dispari
-
-
-  tst.w 0(a2,d4.w)
-  beq.s alessio
-  move.b #0,40*256(a6)
-  move.b #$F0,(a6)
-  bra.s prossimo
-alessio:
-  move.b #$0,(a6)
-  move.b #$F0,40*256(a6)
-  bra.s  prossimo
-
-dispari:
-  tst.w 0(a2,d4.w)
-  beq.s alessio2
-  ori.b #$F,(a6)+
-  bra.s prossimo
-
-alessio2:
-  ori.b #$F,40*256(a6)
-  addq #1,a6
-
-prossimo:
-
-
-  ;addi.w    #1,CURRENT_X
-  addq      #1,d3
-  dbra      d6,tunnel_x
-  ;move.w    #0,CURRENT_X
-  moveq     #0,d3
-    adda.l    #8+40*2,a6
-
-  ;addi.w    #1,CURRENT_Y
-  addq      #1,d5
-  dbra      d7,tunnel_y
-
+  ; change scanline
+  moveq             #0,d3
+  adda.l            #8+40*2,a6
+  addq              #1,d5
+  dbra              d7,tunnel_y
 tunnelend:
-    ;move.w #$000,$dff180
 
+  IFD COLORDEBUG
+  move.w            #$000,$dff180
+  ENDC
 
-  
-
+  ; load bitplanes in copperlist
   lea               BPLPTR1,a1
   move.l            SCREEN_PTR_0,d0
   POINTINCOPPERLIST
@@ -194,15 +195,19 @@ tunnelend:
   move.l            SCREEN_PTR_1,d0
   POINTINCOPPERLIST
 
+  ; increment the frame counter for animating
+  ;add.w             #1,FRAME_COUNTER
+  swap               d7
+  addq               #1,d7
+  swap               d7
 
-  add.w             #1,FRAME_COUNTER
-
-  btst              #6,$bfe001                                                     ; tasto sinistro del mouse premuto?
-  bne.w             mouse                                                          ; se no, torna a mouse:
+  ; exit if lmb is pressed
+  btst              #6,$bfe001
+  bne.w             mouse
 exit_demo:
-  bsr.w               Restore_all
-  clr.l               d0
-  rts                                                                                ; USCITA DAL PROGRAMMA
+  bsr.w             Restore_all
+  clr.l             d0
+  rts
 
 ; Routine to generate a XOR texture
 XOR_TEXTURE:
@@ -211,33 +216,33 @@ XOR_TEXTURE:
   ;{
   ;  texture[y][x] = (x * 256 / texWidth) ^ (y * 256 / texHeight);
   ;}
-  lea       TEXTURE_DATA(PC),a2
-  clr.w     CURRENT_X
-  clr.w     CURRENT_Y
+  lea               TEXTURE_DATA(PC),a2
+  clr.w             CURRENT_X
+  clr.w             CURRENT_Y
 
   ; y cycle start   for(int y = 0; y < texHeight; y++)
-  moveq     #TEXTURE_SIZE-1,d7
+  moveq             #TEXTURE_SIZE-1,d7
 xor_texture_y:
 
 ; x cycle start
-  moveq     #TEXTURE_SIZE-1,d6 ; for(int x = 0; x < texWidth; x++)
+  moveq             #TEXTURE_SIZE-1,d6 ; for(int x = 0; x < texWidth; x++)
 xor_texture_x:
 
   move.w            CURRENT_X,d0
 	move.w            CURRENT_Y,d1
 
   ; execute eor
-  move.w    d0,d5
-  eor.w     d1,d5
+  move.w            d0,d5
+  eor.w             d1,d5
 
   ; if d7 > 127 color is 1
   IF_1_LESS_EQ_2_W_U #TEXTURE_SIZE/2,d5,.notgreater,s
-  STROKE #1
-  clr.w (a2)+
-  bra.s .printpoint
+  ;STROKE #1
+  clr.w             (a2)+
+  bra.s             .printpoint
 .notgreater:
-  STROKE #2
-  move.w #$FFFF,(a2)+
+  ;STROKE #2
+  move.w            #$FFFF,(a2)+
 .printpoint
 	;jsr               POINT
   addi.w            #1,CURRENT_X
@@ -265,74 +270,74 @@ xor_texture_x:
 ; Resulting table will be stored att addr TRANSFORMATION_TABLE_DISTANCE
 ; 
 GENERATE_TRANSFORMATION_TABLE:
-  lea       TRANSFORMATION_TABLE_DISTANCE(PC),a0
+  lea               TRANSFORMATION_TABLE_DISTANCE(PC),a0
 
   ; init x (d0) and y (d1) , for convenience instead starting from 0, we start from -SCREEN_RES_X/2 and we and
   ; at SCREEN_RES/2, same for the Y axys
-  move.w    #SCREEN_RES_X/2*-1,d0
-  move.w    #SCREEN_RES_Y/2*-1,d1
+  move.w            #SCREEN_RES_X/2*-1,d0
+  move.w            #SCREEN_RES_Y/2*-1,d1
 
   ; first cycle - for each Y
-  moveq   #SCREEN_RES_Y-1,d7
+  moveq             #SCREEN_RES_Y-1,d7
 table_precalc_y:
 
   ; second cycle - for each X
-  moveq   #SCREEN_RES_X-1,d6
+  moveq             #SCREEN_RES_X-1,d6
 table_precalc_x:
 
-  move.w  d0,d2
-  move.w  d1,d3
+  move.w            d0,d2
+  move.w            d1,d3
 
-  muls    d2,d2
-  muls    d3,d3
+  muls              d2,d2
+  muls              d3,d3
 
-  add.w   d2,d3
+  add.w             d2,d3
 
   ; now d3 hold the result of (x - width / 2.0) * (x - width / 2.0) + (y - height / 2.0) * (y - height / 2.0)
   ; let's start with sqrt calculation
 
   ; start sqrt execution
-  move.w  #-1,d5
+  move.w            #-1,d5
 qsqrt1:
-  addq    #2,d5
-  sub.w   d5,d3
-  bpl     qsqrt1
-  asr.w   #1,d5
-  move.w  d5,d3
+  addq              #2,d5
+  sub.w             d5,d3
+  bpl               qsqrt1
+  asr.w             #1,d5
+  move.w            d5,d3
   ; end sqrt execution
 
   ; here d3 holds sqrt(distance)
 
   ; sanity check, distance could be zero, we dont want to divide by zero, m68k doesnt like it
   ; if distance is zero let's say distance is 1
-  bne.s   distanceok
-  moveq   #1,d3
+  bne.s             distanceok
+  moveq             #1,d3
 distanceok:
 
   ; start executing the following C code: int inverse_distance = (int) (RATIOX * texHeight / distance);
   ; divide per texture height
-  move.l  #256*RATIOX*TEXTURE_HEIGHT,d2
-  divu    d3,d2
+  move.l            #256*RATIOX*TEXTURE_HEIGHT,d2
+  divu              d3,d2
 
   ; get integer part
-  lsr.w   #8,d2
+  lsr.w             #8,d2
 
   ;get the module
-  ext.l   d2
-  divu    #TEXTURE_HEIGHT,d2
-  swap    d2
+  ext.l             d2
+  divu              #TEXTURE_HEIGHT,d2
+  swap              d2
 
   ; write into transformation table
-  move.w  d2,(a0)+
+  move.w            d2,(a0)+
 
-  addq    #1,d0 ; increment x
-  dbra    d6,table_precalc_x ; next x iteration
+  addq              #1,d0 ; increment x
+  dbra              d6,table_precalc_x ; next x iteration
 
-  addq    #1,d1 ; increment y
-  ;clr.w   d0 ; reset x
+  addq              #1,d1 ; increment y
+  ;clr.w            d0 ; reset x
   ;dream
-  move.w  #SCREEN_RES_X/2*-1,d0
-  dbra    d7,table_precalc_y
+  move.w            #SCREEN_RES_X/2*-1,d0
+  dbra              d7,table_precalc_y
 
   rts
 
@@ -342,39 +347,39 @@ POINTINCOPPERLIST_FUNCT:
 
 ;---------------------------------------------------------------
 Save_all:
-  move.b              #$87,$bfd100                                                   ; stop drive
-  move.l              $00000004,a6
-  jsr                 -132(a6)
-  move.l              $6c,SaveIRQ
-  move.w              $dff01c,Saveint
-  or.w                #$c000,Saveint
-  move.w              $dff002,SaveDMA
-  or.w                #$8100,SaveDMA
+  move.b            #$87,$bfd100                                                   ; stop drive
+  move.l            $00000004,a6
+  jsr               -132(a6)
+  move.l            $6c,SaveIRQ
+  move.w            $dff01c,Saveint
+  or.w              #$c000,Saveint
+  move.w            $dff002,SaveDMA
+  or.w              #$8100,SaveDMA
 
-  move.l	4.w,a6		; ExecBase in A6
-  JSR	-$84(a6)	; FORBID - Disabilita il Multitasking
-  JSR	-$78(A6)	; DISABLE - Disabilita anche gli interrupt
+  move.l	          4.w,a6		; ExecBase in A6
+  JSR	              -$84(a6)	; FORBID - Disabilita il Multitasking
+  JSR	              -$78(A6)	; DISABLE - Disabilita anche gli interrupt
 				;	    del sistema operativo
   ; set new intena
-  MOVE.L	#$7FFF7FFF,$dff09A	; DISABILITA GLI INTERRUPTS & INTREQS
+  MOVE.L	          #$7FFF7FFF,$dff09A	; DISABILITA GLI INTERRUPTS & INTREQS
 
   rts
 Restore_all:
-  move.l              SaveIRQ,$6c
-  move.w              #$7fff,$dff09a
-  move.w              Saveint,$dff09a
-  move.w              #$7fff,$dff096
-  move.w              SaveDMA,$dff096
-  move.l              $00000004,a6
-  lea                 Name,a1
-  moveq               #0,d0
-  jsr                 -552(a6)
-  move.l              d0,a0
-  move.l              38(a0),$dff080
-  clr.w               $dff088
-  move.l              d0,a1
-  jsr                 -414(a6)
-  jsr                 -138(a6)
+  move.l            SaveIRQ,$6c
+  move.w            #$7fff,$dff09a
+  move.w            Saveint,$dff09a
+  move.w            #$7fff,$dff096
+  move.w            SaveDMA,$dff096
+  move.l            $00000004,a6
+  lea               Name,a1
+  moveq             #0,d0
+  jsr               -552(a6)
+  move.l            d0,a0
+  move.l            38(a0),$dff080
+  clr.w             $dff088
+  move.l            d0,a1
+  jsr               -414(a6)
+  jsr               -138(a6)
   rts
 
 
@@ -430,28 +435,28 @@ COPPERLIST:
 ; Sprites pointer init
 SpritePointers:
 Sprite0pointers:
-  dc.w       $120,$0000,$122,$0000
+  dc.w              $120,$0000,$122,$0000
 
 Sprite1pointers:
-  dc.w       $124,$0000,$126,$0000
+  dc.w              $124,$0000,$126,$0000
 
 Sprite2pointers:
-  dc.w       $128,$0000,$12a,$0000
+  dc.w              $128,$0000,$12a,$0000
 
 Sprite3pointers:
-  dc.w       $12c,$0000,$12e,$0000
+  dc.w              $12c,$0000,$12e,$0000
 
 Sprite4pointers:
-  dc.w       $130,$0000,$132,$0000
+  dc.w              $130,$0000,$132,$0000
 
 Sprite5pointers:
-  dc.w       $134,$0000,$136,$0000
+  dc.w              $134,$0000,$136,$0000
 
 Sprite6pointers;
-  dc.w       $138,$0000,$13a,$0000
+  dc.w              $138,$0000,$13a,$0000
 
 Sprite7pointers:
-  dc.w       $13c,$0000,$13e,$0000
+  dc.w              $13c,$0000,$13e,$0000
 
 ; other stuff
   dc.w       $8e,$2c81                                                 ; DiwStrt	(registri con valori normali)
@@ -476,12 +481,6 @@ BPLPTR1:
   dc.w       $e0,$0000,$e2,$0000                                       ;first	 bitplane - BPL0PT
 BPLPTR2:
   dc.w       $e4,$0000,$e6,$0000                                       ;second bitplane - BPL1PT
-BPLPTR3:
-  dc.w       $e8,$0000,$ea,$0000                                       ;third	 bitplane - BPL2PT
-BPLPTR4:
-  dc.w       $ec,$0000,$ee,$0000                                       ;fourth bitplane - BPL3PT
-BPLPTR5:
-  dc.w       $f0,$0000,$f2,$0000                                       ;fifth	 bitplane - BPL4PT
 
   ; Copperlist end
   dc.w       $FFFF,$FFFE                                               ; End of copperlist
