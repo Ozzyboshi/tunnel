@@ -101,7 +101,7 @@ Aspetta:
 
   ; y cycle start
   ;moveq             #SCREEN_RES_Y-1,d7
-  move.w             #12,d7
+  move.w             #15,d7
 tunnel_y:
 
 ; x cycle start
@@ -112,7 +112,8 @@ tunnel_x:
   move.w            (a3)+,d2
 
   ; read transformation table (rotation table)
-  move.b            (a4)+,d1
+  move.w            (a4)+,d4
+  ;move.b            (a4)+,d4
 
   ; add shift x (add frame counter to what was read from the distance table and perform a %16)
   ;add.w             FRAME_COUNTER,d2
@@ -124,13 +125,13 @@ tunnel_x:
   andi.w            #$F,d2
 
   ; mult by 2 because each point on the texture is represented by 2 bytes - TODO: this could be avoided multiplying the distance table by 2 and mod by 32?
-  lsl.w             #1,d2
+  add.w             d2,d2
 
   ; read rotation value and %16
-  move.w            d1,d4
-  andi.w            #$F,d4 ; module %16
+  ;move.w            d1,d4
+  ;andi.w            #$F,d4 ; module %16
   ;mulu             #TEXTURE_HEIGHT*2,d4 ; d4 holds y offset
-  lsl.w             #5,d4 ; mult by 32 because the texture height is 16px but since i am doubling
+  ;lsl.w             #5,d4 ; mult by 32 because the texture height is 16px but since i am doubling
   
   ; now d4 holds the correct offset of the table in the lower word
   add.w             d2,d4
@@ -397,7 +398,7 @@ Name:                 dc.b "graphics.library",0
   even
 
 TRASFORMATION_TABLE_Y:
-	include "transformationtableY.raw"
+	include "transformationtableY2.raw"
 
 	include "AProcessing/libs/matrix/matrixcommon.s"
 	include "AProcessing/libs/matrix/matrix.s"

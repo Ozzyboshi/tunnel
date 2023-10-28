@@ -33,7 +33,10 @@ void generateTransformationTableY()
             //int inverse_distance_modded = inverse_distance % texHeight;
             printf ("TransformY X:%d - Y:%d : %f\n",x,y,RATIOY*texWidth*atan_distance);
             double result = RATIOY*texWidth*atan_distance;
-            printf("    dc.b %d\n",(int)result);
+            int result2 = (int)result;
+            int result3 = result2&0xF;
+            result3*=32;
+            printf("    dc.w %d\n",(int)result3);
         }
     }
 }
