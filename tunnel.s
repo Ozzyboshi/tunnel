@@ -30,7 +30,7 @@ Inizio:
 
   lea                 $dff000,a6
   move                #$7ff,$96(a6)                                                  ;Disable DMAs
-  move                #%1000011111100000,$96(a6)                                     ;Master,Copper,Blitter,Bitplanes
+  move                #%1000001110000000,$96(a6)                                     ;Master,Copper,Blitter,Bitplanes
   move                #$7fff,$9a(a6)                                                 ;Disable IRQs
   move                #$e000,$9a(a6)                                                 ;Master and lev6
 					;NO COPPER-IRQ!
@@ -91,7 +91,7 @@ Aspetta:
   ; *********************************** Start of tunnel rendering *********************************
   lea               TEXTURE_DATA(PC),a2
   lea               TRANSFORMATION_TABLE_DISTANCE(PC),a3
-  lea	              TRASFORMATION_TABLE_Y,a4
+  lea	              TRASFORMATION_TABLE_Y(PC),a4
 
   moveq             #0,d3 ; reset current x variable
   moveq             #0,d5 ; reset current y variable
@@ -130,7 +130,7 @@ tunnel_x:
   move.w            d1,d4
   andi.w            #$F,d4 ; module %16
   ;mulu             #TEXTURE_HEIGHT*2,d4 ; d4 holds y offset
-  lsl.w             #5,d4 ; mult by 32 because each line on the distance table is 32 bytes?
+  lsl.w             #5,d4 ; mult by 32 because the texture height is 16px but since i am doubling
   
   ; now d4 holds the correct offset of the table in the lower word
   add.w             d2,d4
@@ -396,14 +396,15 @@ SaveIRQ:              dc.l 0
 Name:                 dc.b "graphics.library",0
   even
 
+TRASFORMATION_TABLE_Y:
+	include "transformationtableY.raw"
+
 	include "AProcessing/libs/matrix/matrixcommon.s"
 	include "AProcessing/libs/matrix/matrix.s"
 	include "AProcessing/libs/matrix/point.s"
 	include "AProcessing/libs/rasterizers/point.s"
 	include "AProcessing/libs/rasterizers/processing_bitplanes_fast.s"
 	include "AProcessing/libs/rasterizers/processing_table_plotrefs.s"
-TRASFORMATION_TABLE_Y:
-	include "transformationtableY.raw"
 
 ;----------------------------------------------------------------
 
@@ -432,32 +433,6 @@ COPSET23BPL MACRO
 
 COPPERLIST:
 
-; Sprites pointer init
-SpritePointers:
-Sprite0pointers:
-  dc.w              $120,$0000,$122,$0000
-
-Sprite1pointers:
-  dc.w              $124,$0000,$126,$0000
-
-Sprite2pointers:
-  dc.w              $128,$0000,$12a,$0000
-
-Sprite3pointers:
-  dc.w              $12c,$0000,$12e,$0000
-
-Sprite4pointers:
-  dc.w              $130,$0000,$132,$0000
-
-Sprite5pointers:
-  dc.w              $134,$0000,$136,$0000
-
-Sprite6pointers;
-  dc.w              $138,$0000,$13a,$0000
-
-Sprite7pointers:
-  dc.w              $13c,$0000,$13e,$0000
-
 ; other stuff
   dc.w       $8e,$2c81                                                 ; DiwStrt	(registri con valori normali)
   dc.w       $90,$2cc1                                                 ; DiwStop
@@ -469,7 +444,7 @@ Sprite7pointers:
 	;dc.w	$0182,$f00	; color1 - SCRITTE
 	;dc.w	$0184,$0f0	; color2 - SCRITTE
 	;dc.w	$0186,$00f	; color3 - SCRITTE
-  dc.w  $104,$0000
+  dc.w       $104,$0000
 
   dc.w       $108,0                                                    ; Bpl1Mod
   dc.w       $10a,0
