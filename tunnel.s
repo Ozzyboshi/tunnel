@@ -59,41 +59,7 @@ Inizio:
 	;dc.w	$0184,$0f0	; color2 - SCRITTE
 	;dc.w	$0186,$00f	; color3 - SCRITTE
 
-  lea       TEXTURE_DATA,a2
-  clr.w     CURRENT_X
-  clr.w     CURRENT_Y
-
-  ; y cycle start
-  moveq     #TEXTURE_SIZE-1,d7
-xor_texture_y:
-
-; x cycle start
-  moveq     #TEXTURE_SIZE-1,d6
-xor_texture_x:
-
-  move.w            CURRENT_X,d0
-	move.w            CURRENT_Y,d1
-
-  ; execute eor
-  move.w    d0,d5
-  eor.w     d1,d5
-
-  ; if d7 > 127 color is 1
-  IF_1_LESS_EQ_2_W_U #TEXTURE_SIZE/2,d5,.notgreater,s
-  STROKE #1
-  clr.w (a2)+
-  bra.s .printpoint
-.notgreater:
-  STROKE #2
-  move.w #$FFFF,(a2)+
-.printpoint
-	;jsr               POINT
-  addi.w            #1,CURRENT_X
-  dbra              d6,xor_texture_x
-  clr.w             CURRENT_X
-  addi.w            #1,CURRENT_Y
-  dbra              d7,xor_texture_y
-  ;move.w #$0FF,$dff180
+  jsr XOR_TEXTURE
 
 
 ; START OF MAIN LOOP
@@ -110,6 +76,8 @@ mouse:
 Aspetta:
   cmpi.b            #$ff,$dff006                                                   ; Siamo alla linea 255?
   beq.s             Aspetta
+
+  ;bra.w tunnelend
   
   neg.l             SCREEN_OFFSET
   move.l            SCREEN_OFFSET,d1
@@ -236,6 +204,48 @@ exit_demo:
   clr.l               d0
   rts                                                                                ; USCITA DAL PROGRAMMA
 
+; Routine to generate a XOR texture
+XOR_TEXTURE:
+  ;for(int y = 0; y < texHeight; y++)
+  ;for(int x = 0; x < texWidth; x++)
+  ;{
+  ;  texture[y][x] = (x * 256 / texWidth) ^ (y * 256 / texHeight);
+  ;}
+  lea       TEXTURE_DATA(PC),a2
+  clr.w     CURRENT_X
+  clr.w     CURRENT_Y
+
+  ; y cycle start   for(int y = 0; y < texHeight; y++)
+  moveq     #TEXTURE_SIZE-1,d7
+xor_texture_y:
+
+; x cycle start
+  moveq     #TEXTURE_SIZE-1,d6 ; for(int x = 0; x < texWidth; x++)
+xor_texture_x:
+
+  move.w            CURRENT_X,d0
+	move.w            CURRENT_Y,d1
+
+  ; execute eor
+  move.w    d0,d5
+  eor.w     d1,d5
+
+  ; if d7 > 127 color is 1
+  IF_1_LESS_EQ_2_W_U #TEXTURE_SIZE/2,d5,.notgreater,s
+  STROKE #1
+  clr.w (a2)+
+  bra.s .printpoint
+.notgreater:
+  STROKE #2
+  move.w #$FFFF,(a2)+
+.printpoint
+	;jsr               POINT
+  addi.w            #1,CURRENT_X
+  dbra              d6,xor_texture_x
+  clr.w             CURRENT_X
+  addi.w            #1,CURRENT_Y
+  dbra              d7,xor_texture_y
+  rts
 
 ; Routine GENERATE_TRANSFORMATION_TABLE
 ; This routine generates the precalculated table used for the X axis
