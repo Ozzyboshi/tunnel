@@ -101,8 +101,8 @@ Aspetta:
   ;move.l  SCREEN_PTR_0,a6
 
   ; y cycle start
-  ;moveq             #SCREEN_RES_Y-1,d7
-  move.w             #16,d7
+  move.w             #SCREEN_RES_Y-1,d7
+  ;move.w             #15,d7
 tunnel_y:
 
 ; x cycle start
