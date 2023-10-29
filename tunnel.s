@@ -10,9 +10,9 @@ RATIOX EQU 30
 
   ; Place addr in d0 and the copperlist pointer addr in a1 before calling
 POINTINCOPPERLIST MACRO
-  move.w              d3,6(a1)
-  swap                d3
-  move.w              d3,2(a1)
+  move.w              d5,6(a1)
+  swap                d5
+  move.w              d5,2(a1)
   ENDM
   jmp Inizio
 
@@ -56,6 +56,9 @@ Inizio:
   ; Generate XOR texture (16px X 16px)
   jsr                 XOR_TEXTURE
 
+  moveq             #0,d3 ; reset current time variable
+
+
 ; ******************************* START OF GAME LOOP ****************************
 mouse:
   cmpi.b              #$ff,$dff006                                                   ; Are we at line 255?
@@ -75,11 +78,11 @@ Aspetta:
   
   ; Switch Bitplanes for double buffering
   neg.l             SCREEN_OFFSET
-  move.l            SCREEN_OFFSET,d3
+  move.l            SCREEN_OFFSET,d5
   move.l            SCREEN_PTR_0,SCREEN_PTR_OTHER_0
   move.l            SCREEN_PTR_1,SCREEN_PTR_OTHER_1
-  add.l             d3,SCREEN_PTR_0
-  add.l             d3,SCREEN_PTR_1  
+  add.l             d5,SCREEN_PTR_0
+  add.l             d5,SCREEN_PTR_1  
   
   IFD COLORDEBUG
   move.w #$FF0,$dff180
@@ -93,8 +96,6 @@ Aspetta:
   lea               TRANSFORMATION_TABLE_DISTANCE(PC),a3
   lea	              TRASFORMATION_TABLE_Y(PC),a4
 
-  moveq             #0,d3 ; reset current x variable
-  moveq             #0,d5 ; reset current y variable
 
   SETBITPLANE       0,a6
   SETBITPLANE       1,a5
@@ -106,92 +107,106 @@ Aspetta:
 tunnel_y:
 
 ; x cycle start
-  moveq             #SCREEN_RES_X-1,d6
+  moveq             #SCREEN_RES_X/4-1,d6
 tunnel_x:
 
+  ; start first pixel
   ; read transformation table (distance table)
   move.w            (a3)+,d2
 
   ; read transformation table (rotation table)
   move.w            (a4)+,d4
-  ;move.b            (a4)+,d4
 
   ; add shift x (add frame counter to what was read from the distance table and perform a %16)
   ;add.w             FRAME_COUNTER,d2
   ; frame counter is on the upper part of d7 to save access memory
-  swap              d7
-  add.w             d7,d2
-  swap              d7
-
+  add.w             d3,d2
   andi.w            #$F,d2
 
   ; mult by 2 because each point on the texture is represented by 2 bytes - TODO: this could be avoided multiplying the distance table by 2 and mod by 32?
   add.w             d2,d2
 
-  ; read rotation value and %16
-  ;move.w            d1,d4
-  ;andi.w            #$F,d4 ; module %16
-  ;mulu             #TEXTURE_HEIGHT*2,d4 ; d4 holds y offset
-  ;lsl.w             #5,d4 ; mult by 32 because the texture height is 16px but since i am doubling
-  
   ; now d4 holds the correct offset of the table in the lower word
   add.w             d2,d4
-
-  ; check if the X we are currently rendering is odd or even
-  btst              #0,d3
-  bne.s             odd_x
-
-  ; if we are here X is even! set the high nibble of the byte
 
   tst.w             0(a2,d4.w) ; check if we have to print color 1 or color 2
   beq.s             printcolor1_even ; if color 1 has to be printed on screen
 
   ; we are here only in case the X is even and we must print color 1 (only first bitplane) >>> read pixel [d1][d2]
-  ;move.b            #0,40*256(a6)
-  ;move.b            #$F0,(a6)
-  move.w #$F0,d0
-  moveq #$0,d1
-  bra.s             next_pixel
+  move.w            #$F000,d0
+  moveq             #$0,d1
+  bra.s             pixel_1_done
 printcolor1_even:
 
   ; we are here only in case the X is even and we must print color 2 (only second bitplane) >>> read pixel [d1][d2]
-  ;move.b            #$0,(a6)
-  ;move.b            #$F0,40*256(a6)
-  moveq #$0,d0
-  move.w #$F0,d1
-  bra.s             next_pixel
+  moveq             #$0,d0
+  move.w            #$F000,d1
 
-  ; if we are here X is off! set the low nibble of the byte and update a6
-odd_x:
+pixel_1_done:
+
+  ; pixel 2 start
+  move.w            (a3)+,d2
+  move.w            (a4)+,d4
+  add.w             d3,d2
+  andi.w            #$F,d2
+  add.w             d2,d2
+  add.w             d2,d4
   tst.w             0(a2,d4.w)
-  beq.s             printcolor1_odd
+  beq.s             printcolor2_even
 
   ; we are here only in case the X is odd and we must print color 1 (only first bitplane) >>> read pixel [d1][d2]
-  ;ori.b             #$F,(a6)+
-  ori.b #$F,d0
-  bra.s             print_pixel
+  ori.w             #$0F00,d0
+  bra.s             pixel_2_done
 
-printcolor1_odd:
-  ; we are here only in case the X is odd and we must print color 2 (only second bitplane) >>> read pixel [d1][d2]
-  ;ori.b             #$F,40*256(a6)
-  ;addq              #1,a6
-  ori.b #$F,d1
+printcolor2_even:
+  ori.w             #$0F00,d1
+
+pixel_2_done:
+
+; pixel 3 start
+  move.w            (a3)+,d2
+  move.w            (a4)+,d4
+  add.w             d3,d2
+  andi.w            #$F,d2
+  add.w             d2,d2
+  add.w             d2,d4
+  tst.w             0(a2,d4.w)
+  beq.s             printcolor3_even
+
+  ori.w             #$00F0,d0
+  bra.s             pixel_3_done
+
+printcolor3_even:
+  ori.w             #$00F0,d1
+pixel_3_done:
+
+; start of pixel 4
+  move.w            (a3)+,d2
+  move.w            (a4)+,d4
+  add.w             d3,d2
+  andi.w            #$F,d2
+  add.w             d2,d2
+  add.w             d2,d4
+  tst.w             0(a2,d4.w)
+  beq.s             printcolor4_even
+
+  ori.w             #$000F,d0
+  bra.s             pixel_4_done
+
+printcolor4_even:
+  ori.w             #$000F,d1
+pixel_4_done:
+
 
 print_pixel:
-  move.b             d0,(a6)+
-  move.b             d1,(a5)+
-
-next_pixel:
-
-  ; increment X position by one
-  addq              #1,d3
+  move.w             d0,(a6)+
+  move.w             d1,(a5)+
+  
   dbra              d6,tunnel_x
   
   ; change scanline
-  moveq             #0,d3
   adda.l            #8+40*2,a6
   adda.l            #8+40*2,a5
-  addq              #1,d5
   dbra              d7,tunnel_y
 tunnelend:
 
@@ -201,18 +216,16 @@ tunnelend:
 
   ; load bitplanes in copperlist
   lea               BPLPTR1,a1
-  move.l            SCREEN_PTR_0,d3
+  move.l            SCREEN_PTR_0,d5
   POINTINCOPPERLIST
 
   lea               BPLPTR2,a1
-  move.l            SCREEN_PTR_1,d3
+  move.l            SCREEN_PTR_1,d5
   POINTINCOPPERLIST
 
   ; increment the frame counter for animating
   ;add.w             #1,FRAME_COUNTER
-  swap               d7
-  addq               #1,d7
-  swap               d7
+  addq               #1,d3
 
   ; exit if lmb is pressed
   btst              #6,$bfe001
