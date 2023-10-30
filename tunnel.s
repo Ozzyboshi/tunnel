@@ -71,10 +71,10 @@ tunnel_x_prepare:
   jsr               GENERATE_TRANSFORMATION_TABLE
 
   ; Set colors
-  move.w            #$222,$dff180
-  move.w            #$F00,$dff182
-  move.w            #$0F0,$dff184
-  move.w            #$00F,$dff186
+  move.w              #$222,$dff180
+  move.w              #$888,$dff182
+  move.w              #$ff,$dff184
+  move.w              #$0,$dff186
 
   ; Generate XOR texture (16px X 16px)
   jsr               XOR_TEXTURE
@@ -123,7 +123,7 @@ Aspetta:
   ;SETBITPLANE       0,a6
   SETBITPLANE       1,a5
   ;move.l  SCREEN_PTR_0,a6
-  moveq             #$1e,d5
+  moveq             #$F,d5
 
   ; y cycle start
   moveq              #SCREEN_RES_Y-1,d7
@@ -146,6 +146,7 @@ tunnel_x:
   ; frame counter is on the upper part of d7 to save access memory
   add.w             d3,d2
   and.w             d5,d2
+  add.w             d2,d2
 
   ; now d4 holds the correct offset of the table in the lower word
   add.w             d2,d4
@@ -164,6 +165,7 @@ pixel_1_done:
   move.w            (a4)+,d4
   add.w             d3,d2
   and.w             d5,d2
+  add.w             d2,d2
   add.w             d2,d4
   tst.w             0(a2,d4.w)
   beq.s             pixel_2_done
@@ -175,6 +177,7 @@ pixel_2_done:
   move.w            (a4)+,d4
   add.w             d3,d2
   and.w             d5,d2
+  add.w             d2,d2
   add.w             d2,d4
   tst.w             0(a2,d4.w)
   beq.s             pixel_3_done
@@ -187,10 +190,11 @@ pixel_3_done:
   move.w            (a4)+,d4
   add.w             d3,d2
   and.w             d5,d2
+  add.w             d2,d2
   add.w             d2,d4
   tst.w             0(a2,d4.w)
   beq.s             pixel_4_done
-  ori.w             #$F,d1
+  or.w              d5,d1
 pixel_4_done:
 
 print_pixel:
@@ -200,7 +204,6 @@ print_pixel:
 
   ; change scanline
   lea               8+40*2(a5),a5
-  ;lea               8+40*2(a6),a6
 
   dbra              d7,tunnel_y
 tunnelend:
