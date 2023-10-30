@@ -100,10 +100,11 @@ Aspetta:
   SETBITPLANE       0,a6
   SETBITPLANE       1,a5
   ;move.l  SCREEN_PTR_0,a6
+  moveq #$F,d5
 
   ; y cycle start
-  move.w             #SCREEN_RES_Y-1,d7
-  ;move.w             #15,d7
+  ;moveq              #SCREEN_RES_Y-1,d7
+  moveq             #27,d7
 tunnel_y:
 
 ; x cycle start
@@ -121,7 +122,7 @@ tunnel_x:
   ;add.w             FRAME_COUNTER,d2
   ; frame counter is on the upper part of d7 to save access memory
   add.w             d3,d2
-  andi.w            #$F,d2
+  and.w            d5,d2
 
   ; mult by 2 because each point on the texture is represented by 2 bytes - TODO: this could be avoided multiplying the distance table by 2 and mod by 32?
   add.w             d2,d2
@@ -148,7 +149,7 @@ pixel_1_done:
   move.w            (a3)+,d2
   move.w            (a4)+,d4
   add.w             d3,d2
-  andi.w            #$F,d2
+  and.w            d5,d2
   add.w             d2,d2
   add.w             d2,d4
   tst.w             0(a2,d4.w)
@@ -167,7 +168,7 @@ pixel_2_done:
   move.w            (a3)+,d2
   move.w            (a4)+,d4
   add.w             d3,d2
-  andi.w            #$F,d2
+  and.w            d5,d2
   add.w             d2,d2
   add.w             d2,d4
   tst.w             0(a2,d4.w)
@@ -184,17 +185,17 @@ pixel_3_done:
   move.w            (a3)+,d2
   move.w            (a4)+,d4
   add.w             d3,d2
-  andi.w            #$F,d2
+  and.w            d5,d2
   add.w             d2,d2
   add.w             d2,d4
   tst.w             0(a2,d4.w)
   beq.s             printcolor4_even
 
-  ori.w             #$000F,d0
+  or.w             d5,d0
   bra.s             pixel_4_done
 
 printcolor4_even:
-  ori.w             #$000F,d1
+  or.w             d5,d1
 pixel_4_done:
 
 
@@ -207,6 +208,10 @@ print_pixel:
   ; change scanline
   adda.l            #8+40*2,a6
   adda.l            #8+40*2,a5
+  
+  ;lea               #8+40*2(a5),a5
+  ;lea               #8+40*2(a6),a6
+
   dbra              d7,tunnel_y
 tunnelend:
 
