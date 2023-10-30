@@ -26,35 +26,58 @@ CURRENT_Y:            dc.w      0
 ;FRAME_COUNTER:        dc.w      0
 
 Inizio:
-  bsr.w               Save_all
+  bsr.w             Save_all
 
-  lea                 $dff000,a6
-  move                #$7ff,$96(a6)                                                  ;Disable DMAs
-  move                #%1000001110000000,$96(a6)                                     ;Master,Copper,Blitter,Bitplanes
-  move                #$7fff,$9a(a6)                                                 ;Disable IRQs
-  move                #$e000,$9a(a6)                                                 ;Master and lev6
+  lea               $dff000,a6
+  move              #$7ff,$96(a6)                                                  ;Disable DMAs
+  move              #%1000001110000000,$96(a6)                                     ;Master,Copper,Blitter,Bitplanes
+  move              #$7fff,$9a(a6)                                                 ;Disable IRQs
+  move              #$e000,$9a(a6)                                                 ;Master and lev6
 					;NO COPPER-IRQ!
-  moveq               #0,d0
-  move                d0,$106(a6)                                                    ;Disable AGA/ECS-stuff
-  move                d0,$1fc(a6)
+  moveq             #0,d0
+  move              d0,$106(a6)                                                    ;Disable AGA/ECS-stuff
+  move              d0,$1fc(a6)
 
-  move.l              #COPPERLIST,$80(a6)                                            ; Copperlist point
-  move.w              d0,$88(a6)                                                     ; Copperlist start
+  move.l            #COPPERLIST,$80(a6)                                            ; Copperlist point
+  move.w            d0,$88(a6)                                                     ; Copperlist start
 
-  move.w              d0,$1fc(a6)                                                    ; FMODE - NO AGA
-  move.w              #$c00,$106(a6)                                                 ; BPLCON3 - NO AGA
+  move.w            d0,$1fc(a6)                                                    ; FMODE - NO AGA
+  move.w            #$c00,$106(a6)                                                 ; BPLCON3 - NO AGA
+
+  ; START preparing bitplane 0, set FF in every byte where the tunnel will be drown
+  SETBITPLANE       0,a6
+  ; y cycle start
+  move.w             #SCREEN_RES_Y*3-1,d7
+tunnel_y_prepare:
+
+; x cycle start
+  moveq             #SCREEN_RES_X/4-1,d6
+tunnel_x_prepare:
+  move.w            #$FFFF,(a6)+
+  dbra              d6,tunnel_x_prepare
+
+  ; change scanline
+  lea               8+40*0(a6),a6
+
+  dbra              d7,tunnel_y_prepare
+  ; END preparing bitplane 0, set FF in every byte where the tunnel will be drown
+
+  ; Set bpl zero in copperlist
+  lea               BPLPTR1,a1
+  move.l            SCREEN_PTR_0,d5
+  POINTINCOPPERLIST
 
   ; Generate transformation table for distance
-  jsr                 GENERATE_TRANSFORMATION_TABLE
+  jsr               GENERATE_TRANSFORMATION_TABLE
 
   ; Set colors
-  move.w              #$222,$dff180
-  move.w              #$0,$dff182
-  move.w              #$FFF,$dff184
-  move.w              #$0ff,$dff186
+  move.w            #$222,$dff180
+  move.w            #$F00,$dff182
+  move.w            #$0F0,$dff184
+  move.w            #$00F,$dff186
 
   ; Generate XOR texture (16px X 16px)
-  jsr                 XOR_TEXTURE
+  jsr               XOR_TEXTURE
 
   moveq             #0,d3 ; reset current time variable
 
@@ -79,10 +102,10 @@ Aspetta:
   ; Switch Bitplanes for double buffering
   neg.l             SCREEN_OFFSET
   move.l            SCREEN_OFFSET,d5
-  move.l            SCREEN_PTR_0,SCREEN_PTR_OTHER_0
+  ;move.l            SCREEN_PTR_0,SCREEN_PTR_OTHER_0
   move.l            SCREEN_PTR_1,SCREEN_PTR_OTHER_1
-  add.l             d5,SCREEN_PTR_0
-  add.l             d5,SCREEN_PTR_1  
+  ;add.l             d5,SCREEN_PTR_0
+  add.l             d5,SCREEN_PTR_1
   
   IFD COLORDEBUG
   move.w #$FF0,$dff180
@@ -97,14 +120,14 @@ Aspetta:
   lea	              TRASFORMATION_TABLE_Y(PC),a4
 
 
-  SETBITPLANE       0,a6
+  ;SETBITPLANE       0,a6
   SETBITPLANE       1,a5
   ;move.l  SCREEN_PTR_0,a6
-  moveq #$F,d5
+  moveq             #$1e,d5
 
   ; y cycle start
-  ;moveq              #SCREEN_RES_Y-1,d7
-  moveq             #27,d7
+  moveq              #SCREEN_RES_Y-1,d7
+  ;moveq             #28,d7
 tunnel_y:
 
 ; x cycle start
@@ -122,25 +145,16 @@ tunnel_x:
   ;add.w             FRAME_COUNTER,d2
   ; frame counter is on the upper part of d7 to save access memory
   add.w             d3,d2
-  and.w            d5,d2
-
-  ; mult by 2 because each point on the texture is represented by 2 bytes - TODO: this could be avoided multiplying the distance table by 2 and mod by 32?
-  add.w             d2,d2
+  and.w             d5,d2
 
   ; now d4 holds the correct offset of the table in the lower word
   add.w             d2,d4
 
-  tst.w             0(a2,d4.w) ; check if we have to print color 1 or color 2
-  beq.s             printcolor1_even ; if color 1 has to be printed on screen
-
-  ; we are here only in case the X is even and we must print color 1 (only first bitplane) >>> read pixel [d1][d2]
-  move.w            #$F000,d0
   moveq             #$0,d1
-  bra.s             pixel_1_done
-printcolor1_even:
 
-  ; we are here only in case the X is even and we must print color 2 (only second bitplane) >>> read pixel [d1][d2]
-  moveq             #$0,d0
+  tst.w             0(a2,d4.w) ; check if we have to print color 1 or color 2
+  beq.s             pixel_1_done ; if color 1 has to be printed on screen
+
   move.w            #$F000,d1
 
 pixel_1_done:
@@ -149,34 +163,21 @@ pixel_1_done:
   move.w            (a3)+,d2
   move.w            (a4)+,d4
   add.w             d3,d2
-  and.w            d5,d2
-  add.w             d2,d2
+  and.w             d5,d2
   add.w             d2,d4
   tst.w             0(a2,d4.w)
-  beq.s             printcolor2_even
-
-  ; we are here only in case the X is odd and we must print color 1 (only first bitplane) >>> read pixel [d1][d2]
-  ori.w             #$0F00,d0
-  bra.s             pixel_2_done
-
-printcolor2_even:
+  beq.s             pixel_2_done
   ori.w             #$0F00,d1
-
 pixel_2_done:
 
 ; pixel 3 start
   move.w            (a3)+,d2
   move.w            (a4)+,d4
   add.w             d3,d2
-  and.w            d5,d2
-  add.w             d2,d2
+  and.w             d5,d2
   add.w             d2,d4
   tst.w             0(a2,d4.w)
-  beq.s             printcolor3_even
-
-  ori.w             #$00F0,d0
-  bra.s             pixel_3_done
-
+  beq.s             pixel_3_done
 printcolor3_even:
   ori.w             #$00F0,d1
 pixel_3_done:
@@ -185,32 +186,21 @@ pixel_3_done:
   move.w            (a3)+,d2
   move.w            (a4)+,d4
   add.w             d3,d2
-  and.w            d5,d2
-  add.w             d2,d2
+  and.w             d5,d2
   add.w             d2,d4
   tst.w             0(a2,d4.w)
-  beq.s             printcolor4_even
-
-  or.w             d5,d0
-  bra.s             pixel_4_done
-
-printcolor4_even:
-  or.w             d5,d1
+  beq.s             pixel_4_done
+  ori.w             #$F,d1
 pixel_4_done:
 
-
 print_pixel:
-  move.w             d0,(a6)+
-  move.w             d1,(a5)+
-  
+  move.w            d1,(a5)+
+
   dbra              d6,tunnel_x
-  
+
   ; change scanline
-  adda.l            #8+40*2,a6
-  adda.l            #8+40*2,a5
-  
-  ;lea               #8+40*2(a5),a5
-  ;lea               #8+40*2(a6),a6
+  lea               8+40*2(a5),a5
+  ;lea               8+40*2(a6),a6
 
   dbra              d7,tunnel_y
 tunnelend:
@@ -220,9 +210,6 @@ tunnelend:
   ENDC
 
   ; load bitplanes in copperlist
-  lea               BPLPTR1,a1
-  move.l            SCREEN_PTR_0,d5
-  POINTINCOPPERLIST
 
   lea               BPLPTR2,a1
   move.l            SCREEN_PTR_1,d5
