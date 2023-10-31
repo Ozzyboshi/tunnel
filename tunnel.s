@@ -127,7 +127,7 @@ Aspetta:
 
   ; y cycle start
   ;moveq              #SCREEN_RES_Y-1,d7
-  moveq             #34,d7
+  moveq             #36,d7
 tunnel_y:
 
 ; x cycle start
@@ -192,10 +192,9 @@ pixel_3_done:
   and.w             d5,d2
   ;add.w             d2,d2
   add.w             d2,d4
-  tst.b             0(a2,d4.w)
-  beq.s             pixel_4_done
-  or.w              d5,d1
-pixel_4_done:
+  or.b             0(a2,d4.w),d1
+
+; copy 4 leds into bitplane
 
 print_pixel:
   move.w            d1,(a5)+
@@ -263,7 +262,7 @@ xor_texture_x:
   bra.s             .printpoint
 .notgreater:
   ;STROKE #2
-  move.b            #$FF,(a2)+
+  move.b            #$0F,(a2)+
 .printpoint
 	;jsr               POINT
   addi.w            #1,CURRENT_X
