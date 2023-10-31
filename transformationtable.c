@@ -35,7 +35,7 @@ void generateTransformationTableY()
             double result = RATIOY*texWidth*atan_distance;
             int result2 = (int)result;
             int result3 = result2&0xF;
-            result3*=32;
+            result3*=16;
             printf("    dc.w %d\n",(int)result3);
         }
     }

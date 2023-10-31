@@ -126,8 +126,8 @@ Aspetta:
   moveq             #$F,d5
 
   ; y cycle start
-  moveq              #SCREEN_RES_Y-1,d7
-  ;moveq             #28,d7
+  ;moveq              #SCREEN_RES_Y-1,d7
+  moveq             #34,d7
 tunnel_y:
 
 ; x cycle start
@@ -146,14 +146,14 @@ tunnel_x:
   ; frame counter is on the upper part of d7 to save access memory
   add.w             d3,d2
   and.w             d5,d2
-  add.w             d2,d2
+  ;add.w             d2,d2
 
   ; now d4 holds the correct offset of the table in the lower word
   add.w             d2,d4
 
   moveq             #$0,d1
 
-  tst.w             0(a2,d4.w) ; check if we have to print color 1 or color 2
+  tst.b             0(a2,d4.w) ; check if we have to print color 1 or color 2
   beq.s             pixel_1_done ; if color 1 has to be printed on screen
 
   move.w            #$F000,d1
@@ -165,9 +165,9 @@ pixel_1_done:
   move.w            (a4)+,d4
   add.w             d3,d2
   and.w             d5,d2
-  add.w             d2,d2
+  ;add.w             d2,d2
   add.w             d2,d4
-  tst.w             0(a2,d4.w)
+  tst.b             0(a2,d4.w)
   beq.s             pixel_2_done
   ori.w             #$0F00,d1
 pixel_2_done:
@@ -177,9 +177,9 @@ pixel_2_done:
   move.w            (a4)+,d4
   add.w             d3,d2
   and.w             d5,d2
-  add.w             d2,d2
+  ;add.w             d2,d2
   add.w             d2,d4
-  tst.w             0(a2,d4.w)
+  tst.b             0(a2,d4.w)
   beq.s             pixel_3_done
 printcolor3_even:
   ori.w             #$00F0,d1
@@ -190,9 +190,9 @@ pixel_3_done:
   move.w            (a4)+,d4
   add.w             d3,d2
   and.w             d5,d2
-  add.w             d2,d2
+  ;add.w             d2,d2
   add.w             d2,d4
-  tst.w             0(a2,d4.w)
+  tst.b             0(a2,d4.w)
   beq.s             pixel_4_done
   or.w              d5,d1
 pixel_4_done:
@@ -259,11 +259,11 @@ xor_texture_x:
   ; if d7 > 127 color is 1
   IF_1_LESS_EQ_2_W_U #TEXTURE_SIZE/2,d5,.notgreater,s
   ;STROKE #1
-  clr.w             (a2)+
+  clr.b             (a2)+
   bra.s             .printpoint
 .notgreater:
   ;STROKE #2
-  move.w            #$FFFF,(a2)+
+  move.b            #$FF,(a2)+
 .printpoint
 	;jsr               POINT
   addi.w            #1,CURRENT_X
@@ -418,7 +418,7 @@ Name:                 dc.b "graphics.library",0
   even
 
 TRASFORMATION_TABLE_Y:
-	include "transformationtableY2.raw"
+	include "transformationtableY2.s"
 
 	include "AProcessing/libs/matrix/matrixcommon.s"
 	include "AProcessing/libs/matrix/matrix.s"
