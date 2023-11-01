@@ -7,6 +7,70 @@ TEXTURE_HEIGHT equ 16
 
 RATIOX EQU 30
 
+PRINT_PIXELS MACRO
+  ; start first pixel
+  ; read transformation table (distance table)
+  move.w            (a3)+,d2
+
+  ; read transformation table (rotation table)
+  move.w            (a4)+,d4
+
+  ; add shift x (add frame counter to what was read from the distance table and perform a %16)
+  ;add.w             FRAME_COUNTER,d2
+  ; frame counter is on the upper part of d7 to save access memory
+  add.w             d3,d2
+  and.w             d5,d2
+  ;add.w             d2,d2
+
+  ; now d4 holds the correct offset of the table in the lower word
+  add.w             d2,d4
+
+  moveq             #$0,d1
+
+  tst.b             0(a2,d4.w) ; check if we have to print color 1 or color 2
+  beq.s             pixel_1_done\1 ; if color 1 has to be printed on screen
+  move.w            #$F000,d1
+pixel_1_done\1:
+
+  ; pixel 2 start
+  move.w            (a3)+,d2
+  move.w            (a4)+,d4
+  add.w             d3,d2
+  and.w             d5,d2
+  ;add.w             d2,d2
+  add.w             d2,d4
+  tst.b             0(a2,d4.w)
+  beq.s             pixel_2_done\1
+  ori.w             #$0F00,d1
+pixel_2_done\1:
+
+; pixel 3 start
+  move.w            (a3)+,d2
+  move.w            (a4)+,d4
+  add.w             d3,d2
+  and.w             d5,d2
+  ;add.w             d2,d2
+  add.w             d2,d4
+  tst.b             0(a2,d4.w)
+  beq.s             pixel_3_done\1
+  ori.w             #$00F0,d1
+pixel_3_done\1:
+
+; start of pixel 4
+  move.w            (a3)+,d2
+  move.w            (a4)+,d4
+  add.w             d3,d2
+  and.w             d5,d2
+  ;add.w             d2,d2
+  add.w             d2,d4
+  or.b             0(a2,d4.w),d1
+
+; copy 4 leds into bitplane
+
+;print_pixel:
+  move.w            d1,(a5)+
+  ENDM
+
 
   ; Place addr in d0 and the copperlist pointer addr in a1 before calling
 POINTINCOPPERLIST MACRO
@@ -126,80 +190,32 @@ Aspetta:
   moveq             #$F,d5
 
   ; y cycle start
-  ;moveq              #SCREEN_RES_Y-1,d7
-  moveq             #36,d7
+  moveq              #SCREEN_RES_Y-1,d7
+  ;moveq             #36,d7
 tunnel_y:
 
 ; x cycle start
-  moveq             #SCREEN_RES_X/4-1,d6
-tunnel_x:
+  ;moveq             #SCREEN_RES_X/4-1,d6
+;tunnel_x:
 
-  ; start first pixel
-  ; read transformation table (distance table)
-  move.w            (a3)+,d2
+  PRINT_PIXELS 1
+  PRINT_PIXELS 2
+  PRINT_PIXELS 3
+  PRINT_PIXELS 4
+  PRINT_PIXELS 5
+  PRINT_PIXELS 6
+  PRINT_PIXELS 7
+  PRINT_PIXELS 8
+  PRINT_PIXELS 9
+  PRINT_PIXELS 10
+  PRINT_PIXELS 11
+  PRINT_PIXELS 12
+  PRINT_PIXELS 13
+  PRINT_PIXELS 14
+  PRINT_PIXELS 15
+  PRINT_PIXELS 16
 
-  ; read transformation table (rotation table)
-  move.w            (a4)+,d4
-
-  ; add shift x (add frame counter to what was read from the distance table and perform a %16)
-  ;add.w             FRAME_COUNTER,d2
-  ; frame counter is on the upper part of d7 to save access memory
-  add.w             d3,d2
-  and.w             d5,d2
-  ;add.w             d2,d2
-
-  ; now d4 holds the correct offset of the table in the lower word
-  add.w             d2,d4
-
-  moveq             #$0,d1
-
-  tst.b             0(a2,d4.w) ; check if we have to print color 1 or color 2
-  beq.s             pixel_1_done ; if color 1 has to be printed on screen
-
-  move.w            #$F000,d1
-
-pixel_1_done:
-
-  ; pixel 2 start
-  move.w            (a3)+,d2
-  move.w            (a4)+,d4
-  add.w             d3,d2
-  and.w             d5,d2
-  ;add.w             d2,d2
-  add.w             d2,d4
-  tst.b             0(a2,d4.w)
-  beq.s             pixel_2_done
-  ori.w             #$0F00,d1
-pixel_2_done:
-
-; pixel 3 start
-  move.w            (a3)+,d2
-  move.w            (a4)+,d4
-  add.w             d3,d2
-  and.w             d5,d2
-  ;add.w             d2,d2
-  add.w             d2,d4
-  tst.b             0(a2,d4.w)
-  beq.s             pixel_3_done
-printcolor3_even:
-  ori.w             #$00F0,d1
-pixel_3_done:
-
-; start of pixel 4
-  move.w            (a3)+,d2
-  move.w            (a4)+,d4
-  add.w             d3,d2
-  and.w             d5,d2
-  ;add.w             d2,d2
-  add.w             d2,d4
-  or.b             0(a2,d4.w),d1
-
-; copy 4 leds into bitplane
-
-print_pixel:
-  move.w            d1,(a5)+
-
-  dbra              d6,tunnel_x
+  ;dbra              d6,tunnel_x
 
   ; change scanline
   lea               8+40*2(a5),a5
