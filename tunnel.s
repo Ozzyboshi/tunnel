@@ -131,6 +131,16 @@ tunnel_x_prepare:
   move.l            SCREEN_PTR_0,d5
   POINTINCOPPERLIST
 
+    ; START: Prepare Y rotation transformation table
+  moveq             #0,d6
+  lea	              TRASFORMATION_TABLE_Y_0(PC),a6
+  moveq             #64-1,d5
+transformation_table_y_loop:
+  jsr               GENERATE_Y_TRANSFORMATION_TABLE
+  addq              #1,d6
+  dbra              d5,transformation_table_y_loop
+  ; END: Prepare Y rotation transformation table 
+
   ; Generate transformation table for distance
   jsr               GENERATE_TRANSFORMATION_TABLE
 
