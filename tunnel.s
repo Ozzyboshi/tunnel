@@ -29,7 +29,7 @@ PRINT_PIXELS MACRO
 
   tst.b             0(a2,d4.w) ; check if we have to print color 1 or color 2
   beq.s             pixel_1_done\1 ; if color 1 has to be printed on screen
-  move.w            #$F000,d1
+  move.w            d6,d1
 pixel_1_done\1:
 
   ; pixel 2 start
@@ -41,7 +41,7 @@ pixel_1_done\1:
   add.w             d2,d4
   tst.b             0(a2,d4.w)
   beq.s             pixel_2_done\1
-  ori.w             #$0F00,d1
+  or.w             d0,d1
 pixel_2_done\1:
 
 ; pixel 3 start
@@ -150,11 +150,15 @@ transformation_table_y_loop:
   move.w              #$ff,$dff184
   move.w              #$0,$dff186
 
+  ; set modulo
+
   ; Generate XOR texture (16px X 16px)
   jsr               XOR_TEXTURE
 
   moveq             #0,d3 ; reset current time variable
   lea	              TRASFORMATION_TABLE_Y_0(PC),a4
+    move.w #$F000,d6
+    move.w #$0F00,d0
 
 
 ; ******************************* START OF GAME LOOP ****************************
@@ -231,7 +235,7 @@ tunnel_y:
   ;dbra              d6,tunnel_x
 
   ; change scanline
-  lea               8+40*2(a5),a5
+  lea               8+40*0(a5),a5
 
   dbra              d7,tunnel_y
 tunnelend:
@@ -533,6 +537,321 @@ BPLPTR1:
   dc.w       $e0,$0000,$e2,$0000                                       ;first	 bitplane - BPL0PT
 BPLPTR2:
   dc.w       $e4,$0000,$e6,$0000                                       ;second bitplane - BPL1PT
+
+  ; line 1
+  dc.w       $2bE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $2dE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+  ; line 2
+  dc.w       $2eE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $30E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+  ; line 3
+  dc.w       $31E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $33E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+  ; line 4
+  dc.w       $34E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $36E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+  ; line 5
+  dc.w       $37E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $39E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+    ; line 6
+  dc.w       $3AE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $3CE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+    ; line 7
+  dc.w       $3DE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $3FE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+    ; line 8
+  dc.w       $40E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $42E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+    ; line 9
+  dc.w       $43E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $45E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+    ; line 10
+  dc.w       $46E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $48E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+      ; line 11
+  dc.w       $49E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $4BE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+      ; line 12
+  dc.w       $4CE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $4EE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+      ; line 14
+  dc.w       $4FE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $51E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+      ; line 15
+  dc.w       $52E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $54E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+     ; line 16
+  dc.w       $55E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $57E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+     ; line 17
+  dc.w       $58E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $5AE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+     ; line 18
+  dc.w       $5BE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $5DE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+     ; line 19
+  dc.w       $5EE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $60E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+     ; line 20
+  dc.w       $61E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $63E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+     ; line 21
+  dc.w       $64E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $66E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+     ; line 22
+  dc.w       $67E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $69E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+     ; line 23
+  dc.w       $6AE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $6CE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+     ; line 24
+  dc.w       $6DE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $6FE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+     ; line 25
+  dc.w       $70E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $72E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+       ; line 26
+  dc.w       $73E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $75E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+         ; line 27
+  dc.w       $76E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $78E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+         ; line 28
+  dc.w       $79E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $7BE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+         ; line 29
+  dc.w       $7CE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $7EE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+         ; line 30
+  dc.w       $7FE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $81E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+           ; line 31
+  dc.w       $82E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $84E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+           ; line 32
+  dc.w       $85E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $87E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+           ; line 33
+  dc.w       $88E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $8AE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+           ; line 34
+  dc.w       $8BE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $8EE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+           ; line 35
+  dc.w       $8FE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $91E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+             ; line 36
+  dc.w       $92E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $94E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+             ; line 37
+  dc.w       $95E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $97E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+               ; line 38
+  dc.w       $98E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $9AE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+               ; line 39
+  dc.w       $9BE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $9DE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+               ; line 40
+  dc.w       $9EE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $A0E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+
+
 
   ; Copperlist end
   dc.w       $FFFF,$FFFE                                               ; End of copperlist
