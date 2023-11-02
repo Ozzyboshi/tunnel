@@ -288,6 +288,23 @@ xor_texture_x:
   dbra              d7,xor_texture_y
   rts
 
+  ; Routine GENERATE_Y_TRANSFORMATION_TABLE
+  ; This routine reads table TRASFORMATION_TABLE_Y which is created be the
+  ; "transformationtable.c" and recalculates it using a different shiftY.
+  ; shiftY value must be stored on d6
+  ; the destination table must be stored on a6
+  GENERATE_Y_TRANSFORMATION_TABLE:
+                    lea	              TRASFORMATION_TABLE_Y(PC),a4
+                    move.w            #SCREEN_RES_X*SCREEN_RES_Y-1,d7
+  generate_y_transformation_table_loop:
+                    move.w           (a4)+,d0
+                    add.w            d6,d0
+                    andi.w           #$F,d0
+                    muls.w           #16,d0
+                    move.w           d0,(a6)+
+                    dbra             d7,generate_y_transformation_table_loop
+                    rts
+
 ; Routine GENERATE_TRANSFORMATION_TABLE
 ; This routine generates the precalculated table used for the X axis
 ; It's just a translation for this C code:
@@ -434,6 +451,8 @@ Name:                 dc.b "graphics.library",0
 
 TRASFORMATION_TABLE_Y:
 	include "transformationtableY2.s"
+TRASFORMATION_TABLE_Y_0: dcb.w SCREEN_RES_X*SCREEN_RES_Y*64,0
+TRASFORMATION_TABLE_Y_0_END:
 
 	include "AProcessing/libs/matrix/matrixcommon.s"
 	include "AProcessing/libs/matrix/matrix.s"
