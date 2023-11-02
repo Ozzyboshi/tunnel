@@ -200,8 +200,11 @@ Aspetta:
   moveq             #$F,d5
 
   ; y cycle start
+  IFND TUNNEL_SCANLINES
   moveq              #SCREEN_RES_Y-1,d7
-  ;moveq             #36,d7
+  ELSE
+  moveq              #TUNNEL_SCANLINES-1,d7
+  ENDC
 tunnel_y:
 
 ; x cycle start
@@ -233,10 +236,14 @@ tunnel_y:
   dbra              d7,tunnel_y
 tunnelend:
 
-  cmp.l             #TRASFORMATION_TABLE_Y_0_END,a4
-  bne.s             restorey
+  IFD TUNNEL_SCANLINES
+  lea               2*64*(64-TUNNEL_SCANLINES)(a4),a4
+  ENDC
+
+  cmpa.l            #TRASFORMATION_TABLE_Y_0_END,a4
+  bne.s             norestorey
   lea	              TRASFORMATION_TABLE_Y_0(PC),a4
-restorey:
+norestorey:
 
   IFD COLORDEBUG
   move.w            #$000,$dff180
