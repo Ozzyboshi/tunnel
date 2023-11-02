@@ -191,7 +191,7 @@ Aspetta:
   ; *********************************** Start of tunnel rendering *********************************
   lea               TEXTURE_DATA(PC),a2
   lea               TRANSFORMATION_TABLE_DISTANCE(PC),a3
-  lea	              TRASFORMATION_TABLE_Y(PC),a4
+  lea	              TRASFORMATION_TABLE_Y_0(PC),a4
 
 
   ;SETBITPLANE       0,a6
