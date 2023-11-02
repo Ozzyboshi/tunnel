@@ -154,6 +154,7 @@ transformation_table_y_loop:
   jsr               XOR_TEXTURE
 
   moveq             #0,d3 ; reset current time variable
+  lea	              TRASFORMATION_TABLE_Y_0(PC),a4
 
 
 ; ******************************* START OF GAME LOOP ****************************
@@ -191,7 +192,6 @@ Aspetta:
   ; *********************************** Start of tunnel rendering *********************************
   lea               TEXTURE_DATA(PC),a2
   lea               TRANSFORMATION_TABLE_DISTANCE(PC),a3
-  lea	              TRASFORMATION_TABLE_Y_0(PC),a4
 
 
   ;SETBITPLANE       0,a6
@@ -232,6 +232,11 @@ tunnel_y:
 
   dbra              d7,tunnel_y
 tunnelend:
+
+  cmp.l             #TRASFORMATION_TABLE_Y_0_END,a4
+  bne.s             restorey
+  lea	              TRASFORMATION_TABLE_Y_0(PC),a4
+restorey:
 
   IFD COLORDEBUG
   move.w            #$000,$dff180
