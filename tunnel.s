@@ -94,8 +94,9 @@ Inizio:
 
   ; START preparing bitplane 0, set FF in every byte where the tunnel will be drown
   SETBITPLANE       0,a6
+  addq              #4,a6
   ; y cycle start
-  move.w            #SCREEN_RES_Y*3-1,d7
+  move.w            #SCREEN_RES_Y*3,d7
 tunnel_y_prepare:
 
 ; x cycle start
@@ -144,6 +145,7 @@ transformation_table_y_loop:
   moveq             #0,d3 ; reset current time variable
   lea	              TRANSFORMATION_TABLE_Y_0(PC),a4
   moveq             #$F,d0
+  move.l            #40*256*2*-1,d6
 
   lea               TEXTURE_DATA(PC),a2
   lea               TEXTURE_DATA_2(PC),a6
@@ -168,10 +170,10 @@ mouse:
   ;bra.w tunnelend  ; skip tunnel rendering
 
   ; Switch Bitplanes for double buffering
-  neg.l             SCREEN_OFFSET
-  move.l            SCREEN_OFFSET,d5
-  move.l            SCREEN_PTR_1,SCREEN_PTR_OTHER_1
-  add.l             d5,SCREEN_PTR_1
+  neg.l             d6
+  add.l             d6,SCREEN_PTR_1
+  SETBITPLANE       1,a5
+  addq #4,a5
 
   IFD COLORDEBUG
   move.w #$FF0,$dff180
@@ -182,7 +184,6 @@ mouse:
   ; *********************************** Start of tunnel rendering *********************************
   lea               TRANSFORMATION_TABLE_DISTANCE(PC),a3
 
-  SETBITPLANE       1,a5
 
   ; y cycle start
   IFND TUNNEL_SCANLINES
@@ -860,6 +861,151 @@ BPLPTR2:
   dc.w       $B2E3,$FFFE
   ;dc.w       $180,0
   dc.w       $10a,0
+
+                           ; line 47
+  dc.w       $B3E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $B5E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                           ; line 48
+  dc.w       $B6E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $B8E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                           ; line 49
+  dc.w       $B9E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $BBE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                           ; line 50
+  dc.w       $BCE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $BEE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                             ; line 51
+  dc.w       $BFE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $C1E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                             ; line 52
+  dc.w       $C2E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $C4E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                             ; line 53
+  dc.w       $C5E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $C7E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                             ; line 54
+  dc.w       $C8E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $CAE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                             ; line 55
+  dc.w       $CBE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $CEE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                               ; line 56
+  dc.w       $CFE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $D1E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                               ; line 57
+  dc.w       $D2E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $D4E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                               ; line 58
+  dc.w       $D5E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $D7E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                               ; line 59
+  dc.w       $D8E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $DAE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                               ; line 60
+  dc.w       $DBE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $DEE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                               ; line 61
+  dc.w       $DFE3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $E1E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                               ; line 62
+  dc.w       $E2E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $E4E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                               ; line 63
+  dc.w       $E5E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $E7E3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                               ; line 64
+  dc.w       $E8E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $EAE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
 
 
   ; Copperlist end
