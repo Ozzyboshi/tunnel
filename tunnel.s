@@ -22,10 +22,8 @@ PRINT_PIXELS MACRO
 
   ; now d4 holds the correct offset of the table in the lower word
   add.w             d2,d4
-
-  move.b            0(a6,d4.w),d1 ; check if we have to print color 1 or color 2
-  ext.w             d1
-  and.w             d6,d1
+  add.w             d4,d4
+  move.w            0(a6,d4.w),d1 ; check if we have to print color 1 or color 2
 
   ; pixel 2 start
   move.w            (a3)+,d2
@@ -145,7 +143,6 @@ transformation_table_y_loop:
 
   moveq             #0,d3 ; reset current time variable
   lea	              TRANSFORMATION_TABLE_Y_0(PC),a4
-  move.w            #$F000,d6
   moveq             #$F,d0
 
   lea               TEXTURE_DATA(PC),a2
@@ -273,14 +270,14 @@ xor_texture_x:
   ;STROKE #1
   clr.b             (a4)+
   clr.b             (a2)+
-  clr.b             (a3)+
+  clr.w             (a3)+
   clr.w             (a5)+
   bra.s             .printpoint
 .notgreater:
   ;STROKE #2
   move.b            #$F0,(a4)+
   move.b            #$0F,(a2)+
-  move.b            #$FF,(a3)+
+  move.w            #$F000,(a3)+
   move.w            #$0F00,(a5)+
 .printpoint
 	;jsr               POINT
@@ -445,7 +442,7 @@ TRANSFORMATION_TABLE_DISTANCE:
 TEXTURE_DATA:
   dcb.b TEXTURE_HEIGHT*TEXTURE_HEIGHT,0
 TEXTURE_DATA_2:
-  dcb.b TEXTURE_HEIGHT*TEXTURE_HEIGHT,0
+  dcb.w TEXTURE_HEIGHT*TEXTURE_HEIGHT,0
 TEXTURE_DATA_3:
   dcb.b TEXTURE_HEIGHT*TEXTURE_HEIGHT,0
 TEXTURE_DATA_4:
@@ -853,6 +850,14 @@ BPLPTR2:
   ;dc.w       $180,$fff
   dc.w       $10a,-40
   dc.w       $AFE3,$FFFE
+  ;dc.w       $180,0
+  dc.w       $10a,0
+
+                         ; line 46
+  dc.w       $B0E3,$FFFE
+  ;dc.w       $180,$fff
+  dc.w       $10a,-40
+  dc.w       $B2E3,$FFFE
   ;dc.w       $180,0
   dc.w       $10a,0
 
