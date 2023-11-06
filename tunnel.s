@@ -70,9 +70,9 @@ POINTINCOPPERLIST MACRO
 
   SECTION             CiriCop,CODE_C
 
-CURRENT_X:            dc.w      0
-CURRENT_Y:            dc.w      0
-
+CURRENT_X:          dc.w      0
+CURRENT_Y:          dc.w      0
+EFFECT_FUNCTION:    dc.l      VSHRINK
 Inizio:
   bsr.w             Save_all
 
@@ -134,7 +134,7 @@ transformation_table_y_loop:
   ; Set colors
   move.w            #$222,$dff180
   move.w            #$888,$dff182
-  move.w            #$ff,$dff184
+  move.w            #$00f,$dff184
   move.w            #$0,$dff186
 
   ; set modulo
@@ -202,10 +202,13 @@ tunnel_y:
   endr
 
   ; change scanline
-  lea               8+40*0(a5),a5
+  ;lea               8+40*0(a5),a5
+  addq              #8,a5
 
   dbra              d7,tunnel_y
 tunnelend:
+  move.l            EFFECT_FUNCTION,a5
+  jsr.w             (a5)
 
   IFD TUNNEL_SCANLINES
   lea               2*64*(64-TUNNEL_SCANLINES)(a4),a4
@@ -460,6 +463,12 @@ TRANSFORMATION_TABLE_Y:
 TRANSFORMATION_TABLE_Y_0: dcb.w SCREEN_RES_X*SCREEN_RES_Y*64,0
 TRANSFORMATION_TABLE_Y_0_END:
 
+  include "blurryeffect.s"
+  include "normaleffect.s"
+  include "vshrink.s"
+  include "vnormal.s"
+  include "noeffect.s"
+
 	include "AProcessing/libs/rasterizers/processing_bitplanes_fast.s"
 
 ;----------------------------------------------------------------
@@ -502,6 +511,7 @@ BPLPTR1:
 BPLPTR2:
   dc.w       $e4,$0000,$e6,$0000                                       ;second bitplane - BPL1PT
 
+COPLINES:
   ; line 1
   dc.w       $2bE3,$FFFE
   ;dc.w       $180,$fff
