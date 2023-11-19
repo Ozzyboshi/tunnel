@@ -29,7 +29,7 @@ void generateTransformationTableY()
     for (y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             // Calcola la distanza var angle = (int)(currentSliderRatioYValue * texWidth * atan2(y - height / 2.0, x - width / 2.0) / PI);
-            double atan_distance = atan2(y - height / 2.0, x - width / 2.0)/M_PI;
+            double atan_distance = atan2(y - height / 64.0, x - width / 64.0)/M_PI;
             //int inverse_distance_modded = inverse_distance % texHeight;
             printf ("TransformY X:%d - Y:%d : %f\n",x,y,RATIOY*texWidth*atan_distance);
             double result = RATIOY*texWidth*atan_distance;

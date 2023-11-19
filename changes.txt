@@ -1,0 +1,9 @@
+int distanceTable[screenHeight][screenWidth];
+int angleTable[screenHeight][screenWidth];
+
+
+distance = int(ratio * texHeight / sqrt((x - w / 2.0) * (x - w / 2.0) + (y - h / 2.0) * (y - h / 2.0))) % texHeight;
+angle = (unsigned int)(0.5 * texWidth * atan2(y - h / 2.0, x - w / 2.0) / 3.1416);
+
+distance = int(ratio * texHeight / sqrt(float((x - w) * (x - w) + (y - h) * (y - h)))) % texHeight;
+    angle = (unsigned int)(0.5 * texWidth * atan2(float(y - h), float(x - w)) / 3.1416);

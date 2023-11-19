@@ -156,18 +156,6 @@ transformation_table_y_loop:
 mouse:
   cmpi.b            #$ff,$dff006                                                   ; Are we at line 255?
   bne.s             mouse                                                          ; Wait
-;.loop; Wait for vblank
-;	move.l $dff004,d0
-;	and.l #$1ff00,d0
-;	cmp.l #303<<8,d0
-;	bne.b .loop
-
-
-;Aspetta:
-;  cmpi.b            #$ff,$dff006                                                    ; Wait for exiting line 255
-;  beq.s             Aspetta
-
-  ;bra.w tunnelend  ; skip tunnel rendering
 
   ; Switch Bitplanes for double buffering
   neg.l             d6
@@ -184,6 +172,7 @@ mouse:
   ; *********************************** Start of tunnel rendering *********************************
   lea               TRANSFORMATION_TABLE_DISTANCE(PC),a3
 
+  ;lea	              TRANSFORMATION_TABLE_Y_0(PC),a4 uncomment this to stop cycle
 
   ; y cycle start
   IFND TUNNEL_SCANLINES
@@ -208,7 +197,7 @@ tunnel_y:
   dbra              d7,tunnel_y
 tunnelend:
   move.l            EFFECT_FUNCTION,a5
-  jsr.w             (a5)
+  jsr               (a5)
 
   IFD TUNNEL_SCANLINES
   lea               2*64*(64-TUNNEL_SCANLINES)(a4),a4
@@ -326,13 +315,14 @@ generate_y_transformation_table_loop:
 ; }
 ; Resulting table will be stored att addr TRANSFORMATION_TABLE_DISTANCE
 ;
+
 GENERATE_TRANSFORMATION_TABLE:
   lea               TRANSFORMATION_TABLE_DISTANCE(PC),a0
 
-  ; init x (d0) and y (d1) , for convenience instead starting from 0, we start from -SCREEN_RES_X/2 and we and
+  ; init x (d0) and y (d1) , for convenience instead starting from 0, we start from -SCREEN_RES_X/2 and we end
   ; at SCREEN_RES/2, same for the Y axys
-  move.w            #SCREEN_RES_X/2*-1,d0
-  move.w            #SCREEN_RES_Y/2*-1,d1
+  move.l            #0*64,d0
+  move.l            #0,d1
 
   ; first cycle - for each Y
   moveq             #SCREEN_RES_Y-1,d7
@@ -342,16 +332,28 @@ table_precalc_y:
   moveq             #SCREEN_RES_X-1,d6
 table_precalc_x:
 
-  move.w            d0,d2
-  move.w            d1,d3
-
-  muls              d2,d2
-  muls              d3,d3
-
-  add.w             d2,d3
-
-  ; now d3 hold the result of (x - width / 2.0) * (x - width / 2.0) + (y - height / 2.0) * (y - height / 2.0)
-  ; let's start with sqrt calculation
+  ; need to save d0 (x) and d1 (y) to preserve their value
+  move.l            d0,d2
+  move.l            d1,d3
+  
+  ;get the division number
+  move.w            #64*SCREEN_RES_X,d4
+  lsr.w             #6,d4
+  
+  sub.w             d4,d2
+  muls.w            d2,d2
+  lsr.l             #6,d2
+  
+  sub.w             d4,d3
+  muls.w            d3,d3
+  lsr.l             #6,d3
+  
+  add.l             d3,d2 ; it is important here to compute long because otherwise 
+  lsr.l             #6,d2 ; the get strange bands in the middle of the tunner
+  move.l            d2,d3 ; but anyway it could be an idea for an effect
+  
+  ;(x - width / 2.0) * (x - width / 2.0) + (y - height / 2.0) * (y - height / 2.0)
+    ; let's start with sqrt calculation
 
   ; start sqrt execution
   move.w            #-1,d5
@@ -362,10 +364,8 @@ qsqrt1:
   asr.w             #1,d5
   move.w            d5,d3
   ; end sqrt execution
-
-  ; here d3 holds sqrt(distance)
-
-  ; sanity check, distance could be zero, we dont want to divide by zero, m68k doesnt like it
+  
+ ; sanity check, distance could be zero, we dont want to divide by zero, m68k doesnt like it
   ; if distance is zero let's say distance is 1
   bne.s             distanceok
   moveq             #1,d3
@@ -373,11 +373,11 @@ distanceok:
 
   ; start executing the following C code: int inverse_distance = (int) (RATIOX * texHeight / distance);
   ; divide per texture height
-  move.l            #256*RATIOX*TEXTURE_HEIGHT,d2
+  move.l            #64*RATIOX*TEXTURE_HEIGHT,d2
   divu              d3,d2
 
   ; get integer part
-  lsr.w             #8,d2
+  lsr.w             #6,d2
 
   ;get the module
   ext.l             d2
@@ -386,17 +386,17 @@ distanceok:
 
   ; write into transformation table
   move.w            d2,(a0)+
+  
+  addi.w            #1*64,d0
+  dbra              d6,table_precalc_x
 
-  addq              #1,d0 ; increment x
-  dbra              d6,table_precalc_x ; next x iteration
+  add.w              #1*64,d1 ; increment y
 
-  addq              #1,d1 ; increment y
-  ;clr.w            d0 ; reset x
-  ;dream
-  move.w            #SCREEN_RES_X/2*-1,d0
+  move.l            #0*64,d0
   dbra              d7,table_precalc_y
 
   rts
+
 
 POINTINCOPPERLIST_FUNCT:
   POINTINCOPPERLIST
