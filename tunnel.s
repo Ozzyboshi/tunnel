@@ -67,6 +67,8 @@ POINTINCOPPERLIST MACRO
 
   include "AProcessing/libs/rasterizers/globaloptions.s"
   include "AProcessing/libs/math/operations.s"
+  include "AProcessing/libs/math/atan2_pi_64.s"
+  include "AProcessing/libs/math/atan2_pi_64.i"
 
   SECTION             CiriCop,CODE_C
 
@@ -118,9 +120,10 @@ tunnel_x_prepare:
   move.l            SCREEN_PTR_0,d5
   POINTINCOPPERLIST
 
+  jsr               GENERATE_TRANSFORMATION_TABLE_Y
     ; START: Prepare Y rotation transformation table
   moveq             #0,d6
-  lea	              TRANSFORMATION_TABLE_Y_0(PC),a6
+  lea	              TRANSFORMATION_TABLE_Y_0,a6
   moveq             #64-1,d5
 transformation_table_y_loop:
   jsr               GENERATE_Y_TRANSFORMATION_TABLE
@@ -129,7 +132,7 @@ transformation_table_y_loop:
   ; END: Prepare Y rotation transformation table
 
   ; Generate transformation table for distance
-  jsr               GENERATE_TRANSFORMATION_TABLE
+  jsr               GENERATE_TRANSFORMATION_TABLE_X
 
   ; Set colors
   move.w            #$222,$dff180
@@ -143,7 +146,7 @@ transformation_table_y_loop:
   jsr               XOR_TEXTURE
 
   moveq             #0,d3 ; reset current time variable
-  lea	              TRANSFORMATION_TABLE_Y_0(PC),a4
+  lea	              TRANSFORMATION_TABLE_Y_0,a4
   moveq             #$F,d0
   move.l            #40*256*2*-1,d6
 
@@ -205,7 +208,7 @@ tunnelend:
 
   cmpa.l            #TRANSFORMATION_TABLE_Y_0_END,a4
   bne.s             norestorey
-  lea	              TRANSFORMATION_TABLE_Y_0(PC),a4
+  lea	              TRANSFORMATION_TABLE_Y_0,a4
 norestorey:
 
   IFD COLORDEBUG
@@ -316,7 +319,7 @@ generate_y_transformation_table_loop:
 ; Resulting table will be stored att addr TRANSFORMATION_TABLE_DISTANCE
 ;
 
-GENERATE_TRANSFORMATION_TABLE:
+GENERATE_TRANSFORMATION_TABLE_X:
   lea               TRANSFORMATION_TABLE_DISTANCE(PC),a0
 
   ; init x (d0) and y (d1) , for convenience instead starting from 0, we start from -SCREEN_RES_X/2 and we end
@@ -397,6 +400,75 @@ distanceok:
 
   rts
 
+HEIGHT_DIVIDER:     dc.w 64
+WIDTH_DIVIDER:      dc.w 64
+GENERATE_TRANSFORMATION_TABLE_Y:
+  lea               TRANSFORMATION_TABLE_Y(PC),a1
+
+  ; height / HEIGHT_DIVIDER (64.0) into d3
+  moveq             #SCREEN_RES_X,d3
+  divu              WIDTH_DIVIDER,d3
+
+  moveq             #SCREEN_RES_Y,d2
+  divu              HEIGHT_DIVIDER,d2
+
+  ; cannot keep in d3 the value of x, saving in upper part of d2
+  swap              d2
+  move.w            d3,d2
+  swap              d2
+
+  ; init x (d0) and y (d1) , for convenience instead starting from 0, we start from -SCREEN_RES_X/2 and we end
+  ; at SCREEN_RES/2, same for the Y axys
+
+  ; first cycle - for each Y
+  moveq             #0,d5 ; Y
+  moveq             #SCREEN_RES_Y-1,d7
+table_y_precalc_y:
+
+  ; second cycle - for each X
+  moveq             #0,d4 ; X
+  moveq             #SCREEN_RES_X-1,d6
+table_y_precalc_x:
+
+  ;get atan_distance using Aprocessing
+  ;double atan_distance = atan2(y - height / 64.0, x - width / 64.0)/M_PI;
+
+  ; compute y - height / 64.0
+  move.w           d5,d0
+  sub.w            d2,d0
+
+  ; compute X - width / 64.0
+  move.w           d4,d1
+  swap             d2
+  sub.w            d2,d1
+  swap             d2
+
+  ;we are ready to call atan2(y,x)/PI
+  movem.l          d0/d1,-(sp)
+  jsr              ATAN2_PI_64
+  movem.l          (sp)+,d0/d1
+
+  swap d3
+  DEBUG 1111
+  swap d3
+
+
+  ;multiply by texture width
+  asl.w            #4,d3
+
+  ; multiply bt ratioY
+  muls             #4,d3
+
+  asr.w #6,d3
+
+  move.w           d3,(a1)+
+
+  addq             #1,d4
+  dbra             d6,table_y_precalc_x
+  
+  addq             #1,d5
+  dbra             d7,table_y_precalc_y
+  rts
 
 POINTINCOPPERLIST_FUNCT:
   POINTINCOPPERLIST
@@ -458,8 +530,8 @@ SaveIRQ:              dc.l 0
 Name:                 dc.b "graphics.library",0
   even
 
-TRANSFORMATION_TABLE_Y:
-	include "transformationtableY2.s"
+TRANSFORMATION_TABLE_Y:   dcb.w SCREEN_RES_X*SCREEN_RES_Y,0
+	;include "transformationtableY2.s"
 TRANSFORMATION_TABLE_Y_0: dcb.w SCREEN_RES_X*SCREEN_RES_Y*64,0
 TRANSFORMATION_TABLE_Y_0_END:
 
