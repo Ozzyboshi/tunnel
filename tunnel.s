@@ -341,12 +341,15 @@ table_precalc_x:
   
   ;get the division number
   move.w            #64*SCREEN_RES_X,d4
-  lsr.w             #6,d4
-  
+  lsr.w             #2,d4 ; change here to set X position of the center
+
   sub.w             d4,d2
   muls.w            d2,d2
   lsr.l             #6,d2
-  
+
+  move.w            #64*SCREEN_RES_Y,d4
+  lsr.w             #1,d4
+
   sub.w             d4,d3
   muls.w            d3,d3
   lsr.l             #6,d3
@@ -393,15 +396,15 @@ distanceok:
   addi.w            #1*64,d0
   dbra              d6,table_precalc_x
 
-  add.w              #1*64,d1 ; increment y
+  add.w             #1*64,d1 ; increment y
 
   move.l            #0*64,d0
   dbra              d7,table_precalc_y
 
   rts
 
-HEIGHT_DIVIDER:     dc.w 64
-WIDTH_DIVIDER:      dc.w 64
+HEIGHT_DIVIDER:     dc.w 2
+WIDTH_DIVIDER:      dc.w 4
 GENERATE_TRANSFORMATION_TABLE_Y:
   lea               TRANSFORMATION_TABLE_Y(PC),a1
 
@@ -448,9 +451,9 @@ table_y_precalc_x:
   jsr              ATAN2_PI_64
   movem.l          (sp)+,d0/d1
 
-  swap d3
-  DEBUG 1111
-  swap d3
+  ;swap d3
+  ;DEBUG 1111
+  ;swap d3
 
 
   ;multiply by texture width
