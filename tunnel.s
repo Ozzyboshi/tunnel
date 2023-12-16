@@ -15,6 +15,11 @@ PRINT_PIXELS MACRO
   ; read transformation table (rotation table)
   move.w            (a4)+,d4
 
+  ; add shift Y (add frame counter to what was read from the rotation table and perform a %16)
+  add.w             d3,d4
+  and.w             d0,d4
+  asl.w             #4,d4
+
   ; add shift x (add frame counter to what was read from the distance table and perform a %16)
   ; frame counter is on the upper part of d7 to save access memory
   add.w             d3,d2
@@ -28,6 +33,10 @@ PRINT_PIXELS MACRO
   ; pixel 2 start
   move.w            (a3)+,d2
   move.w            (a4)+,d4
+  add.w             d3,d4
+  and.w             d0,d4
+  asl.w             #4,d4
+
   add.w             d3,d2
   and.w             d0,d2
   add.w             d2,d4
@@ -37,6 +46,10 @@ PRINT_PIXELS MACRO
 ; pixel 3 start
   move.w            (a3)+,d2
   move.w            (a4)+,d4
+  add.w             d3,d4
+  and.w             d0,d4
+  asl.w             #4,d4
+
   add.w             d3,d2
   and.w             d0,d2
   add.w             d2,d4
@@ -45,6 +58,10 @@ PRINT_PIXELS MACRO
 ; start of pixel 4
   move.w            (a3)+,d2
   move.w            (a4)+,d4
+  add.w             d3,d4
+  and.w             d0,d4
+  asl.w             #4,d4
+
   add.w             d3,d2
   and.w             d0,d2
   add.w             d2,d4
@@ -52,7 +69,6 @@ PRINT_PIXELS MACRO
 
 ; copy 4 leds into bitplane
 
-;print_pixel:
   move.w            d1,(a5)+
   ENDM
 
@@ -67,8 +83,10 @@ POINTINCOPPERLIST MACRO
 
   include "AProcessing/libs/rasterizers/globaloptions.s"
   include "AProcessing/libs/math/operations.s"
-  include "AProcessing/libs/math/atan2_pi_64.s"
-  include "AProcessing/libs/math/atan2_pi_64.i"
+  include "AProcessing/libs/math/atan2_pi_128.s"
+  ;include "AProcessing/libs/math/atan2_pi_128.i"
+ATAN2_128_QUADRANT: dcb.b 4096,0
+  include "atan2_delta_table.i"
 
   SECTION             CiriCop,CODE_C
 
@@ -94,6 +112,33 @@ Inizio:
   move.w            d0,$1fc(a6)                                                    ; FMODE - NO AGA
   move.w            #$c00,$106(a6)                                                 ; BPLCON3 - NO AGA
 
+  ; ATAN2 table prepare START
+  lea               ATAN2_128_QUADRANT_DELTA,a0
+  lea               ATAN2_128_QUADRANT,a1
+  moveq             #0,d1
+  move.w            #4096-1,d7
+loop:
+  move.w            (a0)+,d0
+  add.w             d1,d0
+  move.b            d0,(a1)+
+  move.w            d0,d1
+  dbra              d7,loop
+  ; ATAN2 table prepare END
+
+  ;check
+  IFD LOL
+  lea               ATAN2_128_QUADRANT,a0
+  lea               ATAN2_128_QUADRANT2,a1
+  move.w            #4096-1,d7
+check:
+  move.b (a0)+,d0
+  move.b (a1)+,d1
+  cmp.b d0,d1
+  beq.s ok
+  DEBUG 2222
+ok:
+  dbra d7,check
+  ENDC
   ; START preparing bitplane 0, set FF in every byte where the tunnel will be drown
   SETBITPLANE       0,a6
   addq              #4,a6
@@ -122,16 +167,6 @@ tunnel_x_prepare:
 
   jsr               GENERATE_TRANSFORMATION_TABLE_Y
 
-    ; START: Prepare Y rotation transformation table
-  moveq             #0,d6
-  lea	              TRANSFORMATION_TABLE_Y_0,a6
-  moveq             #64-1,d5
-transformation_table_y_loop:
-  jsr               GENERATE_Y_TRANSFORMATION_TABLE
-  addq              #1,d6
-  dbra              d5,transformation_table_y_loop
-  ; END: Prepare Y rotation transformation table
-
   ; Generate transformation table for distance
   jsr               GENERATE_TRANSFORMATION_TABLE_X
 
@@ -147,7 +182,6 @@ transformation_table_y_loop:
   jsr               XOR_TEXTURE
 
   moveq             #0,d3 ; reset current time variable
-  lea	              TRANSFORMATION_TABLE_Y_0,a4
   moveq             #$F,d0
   move.l            #40*256*2*-1,d6
 
@@ -175,8 +209,7 @@ mouse:
 
   ; *********************************** Start of tunnel rendering *********************************
   lea               TRANSFORMATION_TABLE_DISTANCE(PC),a3
-
-  ;lea	              TRANSFORMATION_TABLE_Y_0(PC),a4 uncomment this to stop cycle
+  lea	              TRANSFORMATION_TABLE_Y(PC),a4
 
   ; y cycle start
   IFND TUNNEL_SCANLINES
@@ -202,15 +235,6 @@ tunnel_y:
 tunnelend:
   move.l            EFFECT_FUNCTION,a5
   jsr               (a5)
-
-  IFD TUNNEL_SCANLINES
-  lea               2*64*(64-TUNNEL_SCANLINES)(a4),a4
-  ENDC
-
-  cmpa.l            #TRANSFORMATION_TABLE_Y_0_END,a4
-  bne.s             norestorey
-  lea	              TRANSFORMATION_TABLE_Y_0,a4
-norestorey:
 
   IFD COLORDEBUG
   move.w            #$000,$dff180
@@ -449,8 +473,9 @@ table_y_precalc_x:
 
   ;we are ready to call atan2(y,x)/PI
   movem.l          d0/d1,-(sp)
-  jsr              ATAN2_PI_64
+  jsr              ATAN2_PI_128
   movem.l          (sp)+,d0/d1
+  asr.w #3,d3
 
   ;swap d3
   ;DEBUG 1111
@@ -535,9 +560,6 @@ Name:                 dc.b "graphics.library",0
   even
 
 TRANSFORMATION_TABLE_Y:   dcb.w SCREEN_RES_X*SCREEN_RES_Y,0
-	;include "transformationtableY2.s"
-TRANSFORMATION_TABLE_Y_0: dcb.w SCREEN_RES_X*SCREEN_RES_Y*64,0
-TRANSFORMATION_TABLE_Y_0_END:
 
   include "blurryeffect.s"
   include "normaleffect.s"
