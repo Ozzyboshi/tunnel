@@ -26,8 +26,8 @@ void generateTransformationTable() {
 void generateTransformationTableY()
 {
     int x, y;
-    for (y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
+    for (y = 0; y < height*2; y++) {
+        for (int x = 0; x < width*2; x++) {
             // Calcola la distanza var angle = (int)(currentSliderRatioYValue * texWidth * atan2(y - height / 2.0, x - width / 2.0) / PI);
             double atan_distance = atan2(y - height / 64.0, x - width / 64.0)/M_PI;
             printf("alessio %f %f : %f\n",y - height / 64.0, x - width / 64.0, atan_distance);

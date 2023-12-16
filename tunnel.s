@@ -121,6 +121,7 @@ tunnel_x_prepare:
   POINTINCOPPERLIST
 
   jsr               GENERATE_TRANSFORMATION_TABLE_Y
+
     ; START: Prepare Y rotation transformation table
   moveq             #0,d6
   lea	              TRANSFORMATION_TABLE_Y_0,a6

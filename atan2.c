@@ -76,10 +76,10 @@ unsigned char convertToQ2_6(double value) {
 int main() {
     // Esempio di utilizzo
     
-    for (int x=1;x<=62;x++)
+    for (int x=1;x<=128;x+=2)
     {
 //      double inputValue = 0.7854;
-      for (int y = 1; y<=62; y++)
+      for (int y = 1; y<=128; y+=2)
       {
         double inputValue = atan2(y,x)/M_PI;
         // Convertire l'intero nel formato Q2.6
