@@ -185,10 +185,10 @@ tunnel_x_prepare:
   moveq             #$F,d0
   move.l            #40*256*2*-1,d6
 
-  lea               TEXTURE_DATA(PC),a2
-  lea               TEXTURE_DATA_2(PC),a6
-  lea               TEXTURE_DATA_3(PC),a1
-  lea               TEXTURE_DATA_4(PC),a0
+  lea               TEXTURE_DATA,a2
+  lea               TEXTURE_DATA_2,a6
+  lea               TEXTURE_DATA_3,a1
+  lea               TEXTURE_DATA_4,a0
 
 ; ******************************* START OF GAME LOOP ****************************
 mouse:
@@ -208,8 +208,8 @@ mouse:
   ;bra.w     tunnelend
 
   ; *********************************** Start of tunnel rendering *********************************
-  lea               TRANSFORMATION_TABLE_DISTANCE(PC),a3
-  lea	              TRANSFORMATION_TABLE_Y(PC),a4
+  lea               TRANSFORMATION_TABLE_DISTANCE+32+16*256,a3
+  lea	              TRANSFORMATION_TABLE_Y+32+16*256,a4
 
   ; y cycle start
   IFND TUNNEL_SCANLINES
@@ -226,6 +226,9 @@ tunnel_y:
   rept 16
   PRINT_PIXELS
   endr
+
+  adda.w #64*2,a3
+  adda.w #64*2,a4
 
   ; change scanline
   ;lea               8+40*0(a5),a5
@@ -264,10 +267,10 @@ XOR_TEXTURE:
   ;{
   ;  texture[y][x] = (x * 256 / texWidth) ^ (y * 256 / texHeight);
   ;}
-  lea               TEXTURE_DATA(PC),a2
-  lea               TEXTURE_DATA_2(PC),a3
-  lea               TEXTURE_DATA_3(PC),a4
-  lea               TEXTURE_DATA_4(PC),a5
+  lea               TEXTURE_DATA,a2
+  lea               TEXTURE_DATA_2,a3
+  lea               TEXTURE_DATA_3,a4
+  lea               TEXTURE_DATA_4,a5
   clr.w             CURRENT_X
   clr.w             CURRENT_Y
 
@@ -309,23 +312,6 @@ xor_texture_x:
   dbra              d7,xor_texture_y
   rts
 
-; Routine GENERATE_Y_TRANSFORMATION_TABLE
-; This routine reads table TRANSFORMATION_TABLE_Y which is created be the
-; "transformationtable.c" and recalculates it using a different shiftY.
-; shiftY value must be stored on d6
-; the destination table must be stored on a6
-GENERATE_Y_TRANSFORMATION_TABLE:
-  lea	              TRANSFORMATION_TABLE_Y(PC),a4
-  move.w            #SCREEN_RES_X*SCREEN_RES_Y-1,d7
-generate_y_transformation_table_loop:
-  move.w            (a4)+,d0
-  add.w             d6,d0
-  andi.w            #$F,d0
-  muls.w            #16,d0
-  move.w            d0,(a6)+
-  dbra              d7,generate_y_transformation_table_loop
-  rts
-
 ; Routine GENERATE_TRANSFORMATION_TABLE
 ; This routine generates the precalculated table used for the X axis
 ; It's just a translation for this C code:
@@ -353,11 +339,11 @@ GENERATE_TRANSFORMATION_TABLE_X:
   move.l            #0,d1
 
   ; first cycle - for each Y
-  moveq             #SCREEN_RES_Y-1,d7
+  moveq             #SCREEN_RES_Y*2-1,d7
 table_precalc_y:
 
   ; second cycle - for each X
-  moveq             #SCREEN_RES_X-1,d6
+  moveq             #SCREEN_RES_X*2-1,d6
 table_precalc_x:
 
   ; need to save d0 (x) and d1 (y) to preserve their value
@@ -365,17 +351,17 @@ table_precalc_x:
   move.l            d1,d3
   
   ;get the division number
-  move.w            #64*SCREEN_RES_X,d4
-  lsr.w             #2,d4 ; change here to set X position of the center
+  ;move.w            #64*SCREEN_RES_X,d4
+  ;lsr.w             #1,d4 ; change here to set X position of the center
 
-  sub.w             d4,d2
+  sub.w             #64*64,d2
   muls.w            d2,d2
   lsr.l             #6,d2
 
-  move.w            #64*SCREEN_RES_Y,d4
-  lsr.w             #1,d4
+  ;move.w            #64*SCREEN_RES_Y,d4
+  ;lsr.w             #1,d4
 
-  sub.w             d4,d3
+  sub.w             #64*64,d3
   muls.w            d3,d3
   lsr.l             #6,d3
   
@@ -383,7 +369,7 @@ table_precalc_x:
   lsr.l             #6,d2 ; the get strange bands in the middle of the tunner
   move.l            d2,d3 ; but anyway it could be an idea for an effect
   
-  ;(x - width / 2.0) * (x - width / 2.0) + (y - height / 2.0) * (y - height / 2.0)
+  ;(x - width ) * (x - width ) + (y - height ) * (y - height )
     ; let's start with sqrt calculation
 
   ; start sqrt execution
@@ -417,7 +403,7 @@ distanceok:
 
   ; write into transformation table
   move.w            d2,(a0)+
-  
+
   addi.w            #1*64,d0
   dbra              d6,table_precalc_x
 
@@ -428,10 +414,10 @@ distanceok:
 
   rts
 
-HEIGHT_DIVIDER:     dc.w 2
-WIDTH_DIVIDER:      dc.w 4
+HEIGHT_DIVIDER:     dc.w 1
+WIDTH_DIVIDER:      dc.w 1
 GENERATE_TRANSFORMATION_TABLE_Y:
-  lea               TRANSFORMATION_TABLE_Y(PC),a1
+  lea               TRANSFORMATION_TABLE_Y,a1
 
   ; height / HEIGHT_DIVIDER (64.0) into d3
   moveq             #SCREEN_RES_X,d3
@@ -450,12 +436,12 @@ GENERATE_TRANSFORMATION_TABLE_Y:
 
   ; first cycle - for each Y
   moveq             #0,d5 ; Y
-  moveq             #SCREEN_RES_Y-1,d7
+  moveq             #SCREEN_RES_Y*2-1,d7
 table_y_precalc_y:
 
   ; second cycle - for each X
   moveq             #0,d4 ; X
-  moveq             #SCREEN_RES_X-1,d6
+  moveq             #SCREEN_RES_X*2-1,d6
 table_y_precalc_x:
 
   ;get atan_distance using Aprocessing
@@ -463,13 +449,14 @@ table_y_precalc_x:
 
   ; compute y - height / 64.0
   move.w           d5,d0
-  sub.w            d2,d0
+  subi.w            #64,d0
 
   ; compute X - width / 64.0
   move.w           d4,d1
-  swap             d2
-  sub.w            d2,d1
-  swap             d2
+  subi.w           #64,d1
+  ;swap             d2
+  ;sub.w            d2,d1
+  ;swap             d2
 
   ;we are ready to call atan2(y,x)/PI
   movem.l          d0/d1,-(sp)
@@ -542,7 +529,7 @@ Restore_all:
 
 
 TRANSFORMATION_TABLE_DISTANCE:
-  dcb.w SCREEN_RES_X*SCREEN_RES_Y,0
+  dcb.w SCREEN_RES_X*2*SCREEN_RES_Y*2,0
 
 TEXTURE_DATA:
   dcb.b TEXTURE_HEIGHT*TEXTURE_HEIGHT,0
@@ -559,7 +546,7 @@ SaveIRQ:              dc.l 0
 Name:                 dc.b "graphics.library",0
   even
 
-TRANSFORMATION_TABLE_Y:   dcb.w SCREEN_RES_X*SCREEN_RES_Y,0
+TRANSFORMATION_TABLE_Y:   dcb.w SCREEN_RES_X*2*SCREEN_RES_Y*2,0
 
   include "blurryeffect.s"
   include "normaleffect.s"
