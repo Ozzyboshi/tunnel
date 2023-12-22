@@ -92,7 +92,8 @@ ATAN2_128_QUADRANT: dcb.b 4096,0
 
 CURRENT_X:          dc.w      0
 CURRENT_Y:          dc.w      0
-EFFECT_FUNCTION:    dc.l      VSHRINK
+EFFECT_FUNCTION:    dc.l      BLURRYTUNNEL
+
 Inizio:
   bsr.w             Save_all
 
@@ -112,6 +113,54 @@ Inizio:
   move.w            d0,$1fc(a6)                                                    ; FMODE - NO AGA
   move.w            #$c00,$106(a6)                                                 ; BPLCON3 - NO AGA
 
+  ; SIN table prepare START
+  lea               SIN_Q1_7_UNSIGNED_QUADRANT_1,a0
+  lea               SIN_TABLE,a1
+
+  ; quadrant 1 - start
+  moveq             #128-1,d7
+  moveq             #0,d0
+sin_quadrant_1:
+  move.b            (a0)+,d0
+  move.w            d0,(a1)+
+  dbra              d7,sin_quadrant_1
+  ; quadrant 1 - end
+
+  ; quadrant 2 - start
+  move.w            #%10000000,(a1)+; here d1 holds pi/2
+  moveq             #127-1,d7
+sin_quadrant_2:
+  move.b            -(a0),d0
+  move.w            d0,(a1)+
+  dbra              d7,sin_quadrant_2
+  ; quadrant 2 - end
+
+  ; quadrant 3 - start
+  lea               SIN_Q1_7_UNSIGNED_QUADRANT_1,a0
+  moveq             #128-1,d7
+sin_quadrant_3:
+  moveq             #0,d0
+  move.b            (a0)+,d0
+  neg.w             d0
+  move.w            d0,(a1)+
+  dbra              d7,sin_quadrant_3
+  ; quadrant 3 - end
+
+  ; quadrant 4 - start
+  move.w            #$FF80,(a1)+; here d1 holds pi/2
+  moveq             #127-1,d7
+sin_quadrant_4:
+  moveq             #0,d0
+  move.b            -(a0),d0
+  neg.w             d0
+  move.w            d0,(a1)+
+  dbra              d7,sin_quadrant_4
+  ; quadrant 4 - end
+
+  ; SIN table prepare END
+  ;lea               SIN_TABLE,a1
+  ;DEBUG 7777
+  
   ; ATAN2 table prepare START
   lea               ATAN2_128_QUADRANT_DELTA,a0
   lea               ATAN2_128_QUADRANT,a1
@@ -182,7 +231,6 @@ tunnel_x_prepare:
   jsr               XOR_TEXTURE
 
   moveq             #0,d3 ; reset current time variable
-  moveq             #$F,d0
   move.l            #40*256*2*-1,d6
 
   lea               TEXTURE_DATA,a2
@@ -208,8 +256,46 @@ mouse:
   ;bra.w     tunnelend
 
   ; *********************************** Start of tunnel rendering *********************************
-  lea               TRANSFORMATION_TABLE_DISTANCE+32+16*256,a3
-  lea	              TRANSFORMATION_TABLE_Y+32+16*256,a4
+  
+    ; Add offset for navigating into the tunnel (ShiftX and ShiftY)
+  ; I will use d3 (frame counter) to move from one place to another
+  IFND LOL
+  ; SHIFTX START
+  ;DEBUG 6543
+  move.l            d3,d7
+  ;swap d7
+  andi.w            #%111111111,d7 ; Module of 512
+  add.w d7,d7
+  lea               SIN_TABLE,a3
+  ;move.w #10,d7
+  ;DEBUG 5555
+  move.w            0(a3,d7.w),d7
+  asr.w #1,d7
+  ; SHIFTX END
+
+  ; SHIFTY START
+  move.l            d3,d0
+  add.w d0,d0
+  andi.w            #%111111111,d0 ; Module of 512
+  add.w d0,d0
+  ;add.w d0,d0
+  move.w            0(a3,d0.w),d0
+  asr.w #2,d0
+  asl.w #8,d0
+  add.w d0,d7
+  ; SHIFTY END
+
+
+  bclr #0,d7
+  ;DEBUG 7676
+  ENDC
+
+  lea               TRANSFORMATION_TABLE_DISTANCE+64+32*256,a3
+  adda.w d7,a3
+  lea	              TRANSFORMATION_TABLE_Y+64+32*256,a4
+  adda.w d7,a4
+
+  moveq             #$F,d0
 
   ; y cycle start
   IFND TUNNEL_SCANLINES
@@ -227,8 +313,8 @@ tunnel_y:
   PRINT_PIXELS
   endr
 
-  adda.w #64*2,a3
-  adda.w #64*2,a4
+  adda.w            #64*2,a3
+  adda.w            #64*2,a4
 
   ; change scanline
   ;lea               8+40*0(a5),a5
@@ -530,7 +616,8 @@ Restore_all:
 
 TRANSFORMATION_TABLE_DISTANCE:
   dcb.w SCREEN_RES_X*2*SCREEN_RES_Y*2,0
-
+SIN_TABLE:
+  dcb.w 128*4,0
 TEXTURE_DATA:
   dcb.b TEXTURE_HEIGHT*TEXTURE_HEIGHT,0
 TEXTURE_DATA_2:
@@ -553,6 +640,7 @@ TRANSFORMATION_TABLE_Y:   dcb.w SCREEN_RES_X*2*SCREEN_RES_Y*2,0
   include "vshrink.s"
   include "vnormal.s"
   include "noeffect.s"
+  include "sin.i"
 
 	include "AProcessing/libs/rasterizers/processing_bitplanes_fast.s"
 

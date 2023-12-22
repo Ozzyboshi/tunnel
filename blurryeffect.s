@@ -26,7 +26,7 @@ blurrytunnelnoinit:
     move.l             a5,BLURRYTUNNELADDR
     rts
 endblurry:
-    move.l  #NORMALTUNNEL,EFFECT_FUNCTION
+    ;move.l  #NORMALTUNNEL,EFFECT_FUNCTION
     move.w  #0,BLURRYTUNNELYCOUNTER
     move.w  #0,BLURRYTUNNELDELAY
     move.l  #0,BLURRYTUNNELADDR
