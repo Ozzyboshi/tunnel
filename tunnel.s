@@ -122,25 +122,27 @@ Inizio:
   moveq             #128-1,d7
   moveq             #0,d0
 sin_quadrant_1:
+  moveq             #0,d0
   move.b            (a0)+,d0
-  asr.w #1,d0
+  asr.w             #1,d0
   move.w            d0,(a1)+
-  asr.w #1,d0
-  ;asl.w #8,d0
+  asr.w             #1,d0
+  asl.w             #8,d0
   move.w            d0,(a2)+
   dbra              d7,sin_quadrant_1
   ; quadrant 1 - end
 
   ; quadrant 2 - start
   move.w            #$0040,(a1)+; here d1 holds pi/2
-  move.w            #$0020,(a2)+; here d1 holds pi/2
+  move.w            #$2000,(a2)+; here d1 holds pi/2
   moveq             #127-1,d7
 sin_quadrant_2:
+  moveq             #0,d0
   move.b            -(a0),d0
-  asr.w #1,d0
+  asr.w             #1,d0
   move.w            d0,(a1)+
-  asr.w #1,d0
-  ;asl.w #8,d0
+  asr.w             #1,d0
+  asl.w             #8,d0
   move.w            d0,(a2)+
   dbra              d7,sin_quadrant_2
   ; quadrant 2 - end
@@ -152,32 +154,32 @@ sin_quadrant_3:
   moveq             #0,d0
   move.b            (a0)+,d0
   neg.w             d0
-  asr.w #1,d0
+  asr.w             #1,d0
   move.w            d0,(a1)+
-  asr.w #1,d0
-  ;asl.w #8,d0
+  asr.w             #1,d0
+  asl.w             #8,d0
   move.w            d0,(a2)+
   dbra              d7,sin_quadrant_3
   ; quadrant 3 - end
 
   ; quadrant 4 - start
   move.w            #$FFC0,(a1)+; here d1 holds pi/2
-  move.w            #$FFE0,(a2)+; here d1 holds pi/2
+  move.w            #$E000,(a2)+; here d1 holds pi/2
   moveq             #127-1,d7
 sin_quadrant_4:
   moveq             #0,d0
   move.b            -(a0),d0
   neg.w             d0
-  asr.w #1,d0
+  asr.w             #1,d0
   move.w            d0,(a1)+
-  asr.w #1,d0
-  ;asl.w #8,d0
+  asr.w             #1,d0
+  asl.w             #8,d0
   move.w            d0,(a2)+
   dbra              d7,sin_quadrant_4
   ; quadrant 4 - end
 
   ; SIN table prepare END
-  
+
   ; ATAN2 table prepare START
   lea               ATAN2_128_QUADRANT_DELTA,a0
   lea               ATAN2_128_QUADRANT,a1
@@ -277,7 +279,6 @@ mouse:
   andi.w            #%111111111,d0 ; Module of 512
   add.w             d0,d0
   move.w            0(a3,d0.w),d0
-  asl.w             #8,d0
   add.w             d0,d7
   ; SHIFTY END
 
