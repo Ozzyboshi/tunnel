@@ -491,17 +491,15 @@ distanceok:
 
   rts
 
-HEIGHT_DIVIDER:     dc.w 1
-WIDTH_DIVIDER:      dc.w 1
 GENERATE_TRANSFORMATION_TABLE_Y:
   lea               TRANSFORMATION_TABLE_Y,a1
 
-  ; height / HEIGHT_DIVIDER (64.0) into d3
+  ; height / 1 (64.0) into d3
   moveq             #SCREEN_RES_X,d3
-  divu              WIDTH_DIVIDER,d3
+  ;divu              #1,d3
 
   moveq             #SCREEN_RES_Y,d2
-  divu              HEIGHT_DIVIDER,d2
+  ;divu              #1,d2
 
   ; cannot keep in d3 the value of x, saving in upper part of d2
   swap              d2
@@ -539,12 +537,7 @@ table_y_precalc_x:
   movem.l          d0/d1,-(sp)
   jsr              ATAN2_PI_128
   movem.l          (sp)+,d0/d1
-  asr.w #3,d3
-
-  ;swap d3
-  ;DEBUG 1111
-  ;swap d3
-
+  asr.w            #3,d3
 
   ;multiply by texture width
   asl.w            #4,d3
@@ -552,13 +545,13 @@ table_y_precalc_x:
   ; multiply bt ratioY
   muls             #4,d3
 
-  asr.w #6,d3
+  asr.w            #6,d3
 
   move.w           d3,(a1)+
 
   addq             #1,d4
   dbra             d6,table_y_precalc_x
-  
+
   addq             #1,d5
   dbra             d7,table_y_precalc_y
   rts
