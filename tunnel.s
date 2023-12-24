@@ -122,15 +122,17 @@ Inizio:
   moveq             #0,d0
 sin_quadrant_1:
   move.b            (a0)+,d0
+  asr.w #1,d0
   move.w            d0,(a1)+
   dbra              d7,sin_quadrant_1
   ; quadrant 1 - end
 
   ; quadrant 2 - start
-  move.w            #%10000000,(a1)+; here d1 holds pi/2
+  move.w            #$0040,(a1)+; here d1 holds pi/2
   moveq             #127-1,d7
 sin_quadrant_2:
   move.b            -(a0),d0
+  asr.w #1,d0
   move.w            d0,(a1)+
   dbra              d7,sin_quadrant_2
   ; quadrant 2 - end
@@ -142,17 +144,19 @@ sin_quadrant_3:
   moveq             #0,d0
   move.b            (a0)+,d0
   neg.w             d0
+  asr.w #1,d0
   move.w            d0,(a1)+
   dbra              d7,sin_quadrant_3
   ; quadrant 3 - end
 
   ; quadrant 4 - start
-  move.w            #$FF80,(a1)+; here d1 holds pi/2
+  move.w            #$FFC0,(a1)+; here d1 holds pi/2
   moveq             #127-1,d7
 sin_quadrant_4:
   moveq             #0,d0
   move.b            -(a0),d0
   neg.w             d0
+  asr.w #1,d0
   move.w            d0,(a1)+
   dbra              d7,sin_quadrant_4
   ; quadrant 4 - end
@@ -270,7 +274,7 @@ mouse:
   ;move.w #10,d7
   ;DEBUG 5555
   move.w            0(a3,d7.w),d7
-  asr.w #1,d7
+  ;asr.w #1,d7
   ; SHIFTX END
 
   ; SHIFTY START
@@ -280,7 +284,8 @@ mouse:
   add.w d0,d0
   ;add.w d0,d0
   move.w            0(a3,d0.w),d0
-  asr.w #2,d0
+  ;asr.w #1,d0
+  asr.w #1,d0
   asl.w #8,d0
   add.w d0,d7
   ; SHIFTY END
