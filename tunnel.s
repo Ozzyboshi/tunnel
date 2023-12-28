@@ -16,9 +16,9 @@ PRINT_PIXELS MACRO
   move.w            (a4)+,d4
 
   ; add shift Y (add frame counter to what was read from the rotation table and perform a %16)
-  add.w             d3,d4
-  and.w             d0,d4
-  asl.w             #4,d4
+  add.w             d5,d4
+  and.w             #$FF,d4
+  ;asl.w             #4,d4
   ;((15*16+10*16) mod 256 )
 
   ; add shift x (add frame counter to what was read from the distance table and perform a %16)
@@ -34,9 +34,9 @@ PRINT_PIXELS MACRO
   ; pixel 2 start
   move.w            (a3)+,d2
   move.w            (a4)+,d4
-  add.w             d3,d4
-  and.w             d0,d4
-  asl.w             #4,d4
+  add.w             d5,d4
+  and.w             #$FF,d4
+  ;asl.w             #4,d4
 
   add.w             d3,d2
   and.w             d0,d2
@@ -47,9 +47,9 @@ PRINT_PIXELS MACRO
 ; pixel 3 start
   move.w            (a3)+,d2
   move.w            (a4)+,d4
-  add.w             d3,d4
-  and.w             d0,d4
-  asl.w             #4,d4
+  add.w             d5,d4
+  and.w             #$FF,d4
+  ;asl.w             #4,d4
 
   add.w             d3,d2
   and.w             d0,d2
@@ -59,9 +59,9 @@ PRINT_PIXELS MACRO
 ; start of pixel 4
   move.w            (a3)+,d2
   move.w            (a4)+,d4
-  add.w             d3,d4
-  and.w             d0,d4
-  asl.w             #4,d4
+  add.w             d5,d4
+  and.w             #$FF,d4
+  ;asl.w             #4,d4
 
   add.w             d3,d2
   and.w             d0,d2
@@ -301,6 +301,10 @@ mouse:
   adda.w            d7,a4
 
   moveq             #$F,d0
+
+  ; multiply counter by 16
+  move.w            d3,d5
+  lsl.w             #4,d5
 
   ; y cycle start
   IFND TUNNEL_SCANLINES
@@ -556,7 +560,7 @@ table_y_precalc_x:
   ; multiply bt ratioY
   muls             #4,d3
 
-  asr.w            #6,d3
+  asr.w            #2,d3
 
   move.w           d3,(a1)+
 
