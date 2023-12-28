@@ -85,29 +85,24 @@ POINTINCOPPERLIST MACRO
   include "AProcessing/libs/rasterizers/globaloptions.s"
   include "AProcessing/libs/math/operations.s"
   include "AProcessing/libs/math/atan2_pi_128.s"
-  ;include "AProcessing/libs/math/atan2_pi_128.i"
 ATAN2_128_QUADRANT: dcb.b 4096,0
   include "atan2_delta_table.i"
 
   SECTION             CiriCop,CODE_C
-
-CURRENT_X:          dc.w      0
-CURRENT_Y:          dc.w      0
 EFFECT_FUNCTION:    dc.l      BLURRYTUNNEL
 
 TRANSFORMATION_TABLE_Y:
   dcb.w SCREEN_RES_X*2*SCREEN_RES_Y*2,0
 SIN_TABLE:          dcb.w 128*4,0
 SIN_TABLE2:         dcb.w 128*4,0
+
+  include lsp.s
+  include lsp_cia.s
+
 Inizio:
   bsr.w             Save_all
 
-   ;Init LSP and start replay using easy CIA toolbox
-			lea		LSPMusic,a0
-			lea		LSPBank,a1
-			suba.l	a2,a2			; suppose VBR=0 ( A500 )
-			moveq	#0,d0			; suppose PAL machine
-			jsr		LSP_MusicDriver_CIA_Start
+  
 
   lea               $dff000,a6
   move              #$7ff,$96(a6)                                                  ;Disable DMAs
@@ -124,8 +119,6 @@ Inizio:
 
   move.w            d0,$1fc(a6)                                                    ; FMODE - NO AGA
   move.w            #$c00,$106(a6)                                                 ; BPLCON3 - NO AGA
-
-
 
   ; SIN table prepare START
   lea               SIN_Q1_7_UNSIGNED_QUADRANT_1,a0
@@ -241,10 +234,10 @@ tunnel_x_prepare:
   move.l            SCREEN_PTR_0,d5
   POINTINCOPPERLIST
 
-  jsr               GENERATE_TRANSFORMATION_TABLE_Y
+  bsr.w             GENERATE_TRANSFORMATION_TABLE_Y
 
   ; Generate transformation table for distance
-  jsr               GENERATE_TRANSFORMATION_TABLE_X
+  bsr.w             GENERATE_TRANSFORMATION_TABLE_X
 
   ; Set colors
   move.w            #$222,$dff180
@@ -256,6 +249,13 @@ tunnel_x_prepare:
 
   ; Generate XOR texture (16px X 16px)
   jsr               XOR_TEXTURE
+
+  ;Init LSP and start replay using easy CIA toolbox
+	lea		            LSPMusic,a0
+	lea		            LSPBank,a1
+	suba.l	          a2,a2			; suppose VBR=0 ( A500 )
+	moveq	            #0,d0			; suppose PAL machine
+	bsr.w		          LSP_MusicDriver_CIA_Start
 
   moveq             #0,d3 ; reset current time variable
   move.l            #40*256*2*-1,d6
@@ -306,7 +306,7 @@ mouse:
 
   lea               64+32*256+TRANSFORMATION_TABLE_DISTANCE(PC),a3
   adda.w            d7,a3
-  lea	              +64+32*256+TRANSFORMATION_TABLE_Y(PC),a4
+  lea	              64+32*256+TRANSFORMATION_TABLE_Y(PC),a4
   adda.w            d7,a4
 
   moveq             #$F,d0
@@ -321,7 +321,7 @@ mouse:
   ELSE
   moveq             #TUNNEL_SCANLINES-1,d7
   ENDC
-  ori.l #$FF0000,d7
+  ori.l             #$FF0000,d7
 tunnel_y:
 
 ; x cycle start
@@ -359,7 +359,7 @@ tunnelend:
   btst              #6,$bfe001
   bne.w             mouse
 exit_demo:
-  jsr LSP_MusicDriver_CIA_Stop
+  bsr.w             LSP_MusicDriver_CIA_Stop
   bsr.w             Restore_all
   clr.l             d0
   rts
@@ -447,7 +447,7 @@ table_precalc_x:
   ; need to save d0 (x) and d1 (y) to preserve their value
   move.l            d0,d2
   move.l            d1,d3
-  
+
   ;get the division number
   ;move.w            #64*SCREEN_RES_X,d4
   ;lsr.w             #1,d4 ; change here to set X position of the center
@@ -462,11 +462,11 @@ table_precalc_x:
   sub.w             #64*64,d3
   muls.w            d3,d3
   lsr.l             #6,d3
-  
+
   add.l             d3,d2 ; it is important here to compute long because otherwise 
   lsr.l             #6,d2 ; the get strange bands in the middle of the tunner
   move.l            d2,d3 ; but anyway it could be an idea for an effect
-  
+
   ;(x - width ) * (x - width ) + (y - height ) * (y - height )
     ; let's start with sqrt calculation
 
@@ -479,7 +479,7 @@ qsqrt1:
   asr.w             #1,d5
   move.w            d5,d3
   ; end sqrt execution
-  
+
  ; sanity check, distance could be zero, we dont want to divide by zero, m68k doesnt like it
   ; if distance is zero let's say distance is 1
   bne.s             distanceok
@@ -575,10 +575,6 @@ table_y_precalc_x:
 
   addq             #1,d5
   dbra             d7,table_y_precalc_y
-  rts
-
-POINTINCOPPERLIST_FUNCT:
-  POINTINCOPPERLIST
   rts
 
 ;---------------------------------------------------------------
@@ -1198,8 +1194,7 @@ COPLINES:
   ;include P6112-Play.i
   ;include music_ptr_linkable2.s
   ;incbin tunnel.mod
-  include lsp.s
-  include lsp_cia.s
+
 BASSDRUM2:
   ;incbin bassdrum2.raw
 LSPBank:  incbin tunnel.lsbank
