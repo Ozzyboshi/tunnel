@@ -17,7 +17,7 @@ PRINT_PIXELS MACRO
 
   ; add shift Y (add frame counter to what was read from the rotation table and perform a %16)
   add.w             d5,d4
-  and.w             #$FF,d4
+  and.w             d7,d4 ; perform %256 module
   ;asl.w             #4,d4
   ;((15*16+10*16) mod 256 )
 
@@ -35,7 +35,7 @@ PRINT_PIXELS MACRO
   move.w            (a3)+,d2
   move.w            (a4)+,d4
   add.w             d5,d4
-  and.w             #$FF,d4
+  and.w             d7,d4
   ;asl.w             #4,d4
 
   add.w             d3,d2
@@ -48,7 +48,7 @@ PRINT_PIXELS MACRO
   move.w            (a3)+,d2
   move.w            (a4)+,d4
   add.w             d5,d4
-  and.w             #$FF,d4
+  and.w             d7,d4
   ;asl.w             #4,d4
 
   add.w             d3,d2
@@ -60,7 +60,7 @@ PRINT_PIXELS MACRO
   move.w            (a3)+,d2
   move.w            (a4)+,d4
   add.w             d5,d4
-  and.w             #$FF,d4
+  and.w             d7,d4
   ;asl.w             #4,d4
 
   add.w             d3,d2
@@ -312,15 +312,17 @@ mouse:
   ELSE
   moveq             #TUNNEL_SCANLINES-1,d7
   ENDC
+  ori.l #$FF0000,d7
 tunnel_y:
 
 ; x cycle start
   ;moveq             #SCREEN_RES_X/4-1,d6
 ;tunnel_x:
-
+  swap d7
   rept 16
   PRINT_PIXELS
   endr
+  swap d7
 
   ; change scanline
   lea               64*2(a3),a3
