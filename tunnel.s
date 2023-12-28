@@ -19,6 +19,7 @@ PRINT_PIXELS MACRO
   add.w             d3,d4
   and.w             d0,d4
   asl.w             #4,d4
+  ;((15*16+10*16) mod 256 )
 
   ; add shift x (add frame counter to what was read from the distance table and perform a %16)
   ; frame counter is on the upper part of d7 to save access memory
@@ -94,6 +95,10 @@ CURRENT_X:          dc.w      0
 CURRENT_Y:          dc.w      0
 EFFECT_FUNCTION:    dc.l      BLURRYTUNNEL
 
+TRANSFORMATION_TABLE_Y:
+  dcb.w SCREEN_RES_X*2*SCREEN_RES_Y*2,0
+SIN_TABLE:          dcb.w 128*4,0
+SIN_TABLE2:         dcb.w 128*4,0
 Inizio:
   bsr.w             Save_all
 
@@ -115,8 +120,8 @@ Inizio:
 
   ; SIN table prepare START
   lea               SIN_Q1_7_UNSIGNED_QUADRANT_1,a0
-  lea               SIN_TABLE,a1
-  lea               SIN_TABLE2,a2
+  lea               SIN_TABLE(PC),a1
+  lea               SIN_TABLE2(PC),a2
 
   ; quadrant 1 - start
   moveq             #128-1,d7
@@ -125,7 +130,9 @@ sin_quadrant_1:
   moveq             #0,d0
   move.b            (a0)+,d0
   asr.w             #1,d0
-  move.w            d0,(a1)+
+  move.w            d0,d1
+  bclr              #0,d1
+  move.w            d1,(a1)+
   asr.w             #1,d0
   asl.w             #8,d0
   move.w            d0,(a2)+
@@ -140,7 +147,9 @@ sin_quadrant_2:
   moveq             #0,d0
   move.b            -(a0),d0
   asr.w             #1,d0
-  move.w            d0,(a1)+
+  move.w            d0,d1
+  bclr              #0,d1
+  move.w            d1,(a1)+
   asr.w             #1,d0
   asl.w             #8,d0
   move.w            d0,(a2)+
@@ -155,7 +164,9 @@ sin_quadrant_3:
   move.b            (a0)+,d0
   neg.w             d0
   asr.w             #1,d0
-  move.w            d0,(a1)+
+  move.w            d0,d1
+  bclr              #0,d1
+  move.w            d1,(a1)+
   asr.w             #1,d0
   asl.w             #8,d0
   move.w            d0,(a2)+
@@ -171,7 +182,9 @@ sin_quadrant_4:
   move.b            -(a0),d0
   neg.w             d0
   asr.w             #1,d0
-  move.w            d0,(a1)+
+  move.w            d0,d1
+  bclr              #0,d1
+  move.w            d1,(a1)+
   asr.w             #1,d0
   asl.w             #8,d0
   move.w            d0,(a2)+
@@ -268,12 +281,12 @@ mouse:
   move.l            d3,d7
   andi.w            #%111111111,d7 ; Module of 512
   add.w             d7,d7
-  lea               SIN_TABLE,a3
+  lea               SIN_TABLE(PC),a3
   move.w            0(a3,d7.w),d7
   ; SHIFTX END
 
   ; SHIFTY START
-  lea               SIN_TABLE2,a3
+  lea               SIN_TABLE2(PC),a3
   move.l            d3,d0
   add.w             d0,d0
   andi.w            #%111111111,d0 ; Module of 512
@@ -282,11 +295,9 @@ mouse:
   add.w             d0,d7
   ; SHIFTY END
 
-  bclr #0,d7
-
-  lea               TRANSFORMATION_TABLE_DISTANCE+64+32*256,a3
+  lea               64+32*256+TRANSFORMATION_TABLE_DISTANCE(PC),a3
   adda.w            d7,a3
-  lea	              TRANSFORMATION_TABLE_Y+64+32*256,a4
+  lea	              +64+32*256+TRANSFORMATION_TABLE_Y(PC),a4
   adda.w            d7,a4
 
   moveq             #$F,d0
@@ -597,13 +608,8 @@ Restore_all:
   jsr               -138(a6)
   rts
 
-
 TRANSFORMATION_TABLE_DISTANCE:
   dcb.w SCREEN_RES_X*2*SCREEN_RES_Y*2,0
-SIN_TABLE:
-  dcb.w 128*4,0
-SIN_TABLE2:
-  dcb.w 128*4,0
 TEXTURE_DATA:
   dcb.b TEXTURE_HEIGHT*TEXTURE_HEIGHT,0
 TEXTURE_DATA_2:
@@ -618,8 +624,6 @@ SaveDMA:              dc.w 0
 SaveIRQ:              dc.l 0
 Name:                 dc.b "graphics.library",0
   even
-
-TRANSFORMATION_TABLE_Y:   dcb.w SCREEN_RES_X*2*SCREEN_RES_Y*2,0
 
   include "blurryeffect.s"
   include "normaleffect.s"
@@ -1179,6 +1183,13 @@ COPLINES:
 
   ; Copperlist end
   dc.w       $FFFF,$FFFE                                               ; End of copperlist
+
+  ;include P6112-options.i
+  ;include P6112-Play.i
+  ;include music_ptr_linkable2.s
+  ;incbin tunnel.mod
+BASSDRUM2:
+  ;incbin bassdrum2.raw
 
   end
 
