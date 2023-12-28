@@ -102,6 +102,13 @@ SIN_TABLE2:         dcb.w 128*4,0
 Inizio:
   bsr.w             Save_all
 
+   ;Init LSP and start replay using easy CIA toolbox
+			lea		LSPMusic,a0
+			lea		LSPBank,a1
+			suba.l	a2,a2			; suppose VBR=0 ( A500 )
+			moveq	#0,d0			; suppose PAL machine
+			jsr		LSP_MusicDriver_CIA_Start
+
   lea               $dff000,a6
   move              #$7ff,$96(a6)                                                  ;Disable DMAs
   move              #%1000001110000000,$96(a6)                                     ;Master,Copper,Blitter,Bitplanes
@@ -117,6 +124,8 @@ Inizio:
 
   move.w            d0,$1fc(a6)                                                    ; FMODE - NO AGA
   move.w            #$c00,$106(a6)                                                 ; BPLCON3 - NO AGA
+
+
 
   ; SIN table prepare START
   lea               SIN_Q1_7_UNSIGNED_QUADRANT_1,a0
@@ -350,6 +359,7 @@ tunnelend:
   btst              #6,$bfe001
   bne.w             mouse
 exit_demo:
+  jsr LSP_MusicDriver_CIA_Stop
   bsr.w             Restore_all
   clr.l             d0
   rts
@@ -1194,8 +1204,12 @@ COPLINES:
   ;include P6112-Play.i
   ;include music_ptr_linkable2.s
   ;incbin tunnel.mod
+  include lsp.s
+  include lsp_cia.s
 BASSDRUM2:
   ;incbin bassdrum2.raw
+LSPBank:  incbin tunnel.lsbank
+LSPMusic:  incbin tunnel.lsmusic
 
   end
 
