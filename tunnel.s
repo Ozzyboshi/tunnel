@@ -260,10 +260,10 @@ tunnel_x_prepare:
   moveq             #0,d3 ; reset current time variable
   move.l            #40*256*2*-1,d6
 
-  lea               TEXTURE_DATA,a2
-  lea               TEXTURE_DATA_2,a6
-  lea               TEXTURE_DATA_3,a1
-  lea               TEXTURE_DATA_4,a0
+  lea               TEXTURE_DATA(PC),a2
+  lea               TEXTURE_DATA_2(PC),a6
+  lea               TEXTURE_DATA_3(PC),a1
+  lea               TEXTURE_DATA_4(PC),a0
 
 ; ******************************* START OF GAME LOOP ****************************
 mouse:
@@ -371,12 +371,12 @@ XOR_TEXTURE:
   ;{
   ;  texture[y][x] = (x * 256 / texWidth) ^ (y * 256 / texHeight);
   ;}
-  lea               TEXTURE_DATA,a2
-  lea               TEXTURE_DATA_2,a3
-  lea               TEXTURE_DATA_3,a4
-  lea               TEXTURE_DATA_4,a5
-  clr.w             CURRENT_X
-  clr.w             CURRENT_Y
+  lea               TEXTURE_DATA(PC),a2
+  lea               TEXTURE_DATA_2(PC),a3
+  lea               TEXTURE_DATA_3(PC),a4
+  lea               TEXTURE_DATA_4(PC),a5
+  clr.w             d0
+  clr.w             d1
 
   ; y cycle start   for(int y = 0; y < texHeight; y++)
   moveq             #TEXTURE_SIZE-1,d7
@@ -386,33 +386,27 @@ xor_texture_y:
   moveq             #TEXTURE_SIZE-1,d6 ; for(int x = 0; x < texWidth; x++)
 xor_texture_x:
 
-  move.w            CURRENT_X,d0
-	move.w            CURRENT_Y,d1
-
   ; execute eor
   move.w            d0,d5
   eor.w             d1,d5
 
   ; if d7 > 127 color is 1
   IF_1_LESS_EQ_2_W_U #TEXTURE_SIZE/2,d5,.notgreater,s
-  ;STROKE #1
   clr.b             (a4)+
   clr.b             (a2)+
   clr.w             (a3)+
   clr.w             (a5)+
   bra.s             .printpoint
 .notgreater:
-  ;STROKE #2
   move.b            #$F0,(a4)+
   move.b            #$0F,(a2)+
   move.w            #$F000,(a3)+
   move.w            #$0F00,(a5)+
 .printpoint
-	;jsr               POINT
-  addi.w            #1,CURRENT_X
+  addq              #1,d0
   dbra              d6,xor_texture_x
-  clr.w             CURRENT_X
-  addi.w            #1,CURRENT_Y
+  clr.w             d0
+  addq              #1,d1
   dbra              d7,xor_texture_y
   rts
 
@@ -624,8 +618,6 @@ Restore_all:
   jsr               -138(a6)
   rts
 
-TRANSFORMATION_TABLE_DISTANCE:
-  dcb.w SCREEN_RES_X*2*SCREEN_RES_Y*2,0
 TEXTURE_DATA:
   dcb.b TEXTURE_HEIGHT*TEXTURE_HEIGHT,0
 TEXTURE_DATA_2:
@@ -634,6 +626,8 @@ TEXTURE_DATA_3:
   dcb.b TEXTURE_HEIGHT*TEXTURE_HEIGHT,0
 TEXTURE_DATA_4:
   dcb.w TEXTURE_HEIGHT*TEXTURE_HEIGHT,0
+TRANSFORMATION_TABLE_DISTANCE:
+  dcb.w SCREEN_RES_X*2*SCREEN_RES_Y*2,0
 ;---------------------------------------------------------------
 Saveint:              dc.w 0
 SaveDMA:              dc.w 0
