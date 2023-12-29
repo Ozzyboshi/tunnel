@@ -102,8 +102,6 @@ SIN_TABLE2:         dcb.w 128*4,0
 Inizio:
   bsr.w             Save_all
 
-  
-
   lea               $dff000,a6
   move              #$7ff,$96(a6)                                                  ;Disable DMAs
   move              #%1000001110000000,$96(a6)                                     ;Master,Copper,Blitter,Bitplanes
@@ -119,6 +117,20 @@ Inizio:
 
   move.w            d0,$1fc(a6)                                                    ; FMODE - NO AGA
   move.w            #$c00,$106(a6)                                                 ; BPLCON3 - NO AGA
+
+  ; Copperlist creation START
+  lea COPLINES,a0
+  moveq #64-1,d7
+  move.l #$2bE3FFFE,d0
+coploop:
+    move.l d0,(a0)+
+    move.l #$010AFFD8,(a0)+
+    add.l #1*33554432,d0
+    move.l d0,(a0)+
+    move.l #$010A0000,(a0)+
+    add.l #1*16777216,d0
+    dbra d7,coploop
+  ; Copperlist creation END
 
   ; SIN table prepare START
   lea               SIN_Q1_7_UNSIGNED_QUADRANT_1,a0
@@ -680,7 +692,8 @@ BPLPTR1:
 BPLPTR2:
   dc.w       $e4,$0000,$e6,$0000                                       ;second bitplane - BPL1PT
 
-COPLINES:
+COPLINES: dcb.l 4*64,0
+  IFD   LOL
   ; line 1
   dc.w       $2bE3,$FFFE
   ;dc.w       $180,$fff
@@ -1185,7 +1198,7 @@ COPLINES:
   ;dc.w       $180,0
   dc.w       $10a,0
 
-
+  ENDC
 
   ; Copperlist end
   dc.w       $FFFF,$FFFE                                               ; End of copperlist
