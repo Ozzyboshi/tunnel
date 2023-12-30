@@ -3,9 +3,11 @@ TEXTURE_SIZE EQU 16
 SCREEN_RES_X equ 64
 SCREEN_RES_Y equ 64
 
+TEXTURE_WIDTH equ 16
 TEXTURE_HEIGHT equ 16
 
 RATIOX EQU 30
+RATIOY EQU 4
 
 PRINT_PIXELS MACRO
   ; start first pixel
@@ -80,7 +82,7 @@ POINTINCOPPERLIST MACRO
   swap                d5
   move.w              d5,2(a5)
   ENDM
-  jmp Inizio
+  jmp                 Inizio
 
   include "AProcessing/libs/rasterizers/globaloptions.s"
   include "AProcessing/libs/math/operations.s"
@@ -119,17 +121,17 @@ Inizio:
   move.w            #$c00,$106(a6)                                                 ; BPLCON3 - NO AGA
 
   ; Copperlist creation START
-  lea COPLINES,a0
-  moveq #64-1,d7
-  move.l #$2bE3FFFE,d0
+  lea               COPLINES,a0
+  moveq             #SCREEN_RES_Y-1,d7
+  move.l            #$2BE3FFFE,d0
 coploop:
-    move.l d0,(a0)+
-    move.l #$010AFFD8,(a0)+
-    add.l #1*33554432,d0
-    move.l d0,(a0)+
-    move.l #$010A0000,(a0)+
-    add.l #1*16777216,d0
-    dbra d7,coploop
+    move.l          d0,(a0)+
+    move.l          #$010AFFD8,(a0)+
+    add.l           #1*33554432,d0
+    move.l          d0,(a0)+
+    move.l          #$010A0000,(a0)+
+    add.l           #1*16777216,d0
+    dbra            d7,coploop
   ; Copperlist creation END
 
   ; SIN table prepare START
@@ -557,14 +559,11 @@ table_y_precalc_x:
 
   ; compute y - height / 64.0
   move.w           d5,d0
-  subi.w            #64,d0
+  subi.w            #SCREEN_RES_Y,d0
 
   ; compute X - width / 64.0
   move.w           d4,d1
-  subi.w           #64,d1
-  ;swap             d2
-  ;sub.w            d2,d1
-  ;swap             d2
+  subi.w           #SCREEN_RES_X,d1
 
   ;we are ready to call atan2(y,x)/PI
   movem.l          d0/d1,-(sp)
@@ -572,11 +571,8 @@ table_y_precalc_x:
   movem.l          (sp)+,d0/d1
   asr.w            #3,d3
 
-  ;multiply by texture width
-  asl.w            #4,d3
-
-  ; multiply bt ratioY
-  muls             #4,d3
+  ;multiply by texture width and ratioY
+  muls             #TEXTURE_WIDTH*RATIOY,d3
 
   asr.w            #2,d3
 
