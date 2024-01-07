@@ -11,7 +11,7 @@ BLURRYTUNNEL:
     rts
 proceedwithblurrytunnel:
     
-    IF_1_GREATER_EQ_2_W_U #SCREEN_RES_Y*3,BLURRYTUNNELYCOUNTER,endblurry,s
+    IF_1_GREATER_EQ_2_W_U #SCREEN_RES_Y*3-1,BLURRYTUNNELYCOUNTER,endblurry,s
     addi.w #1,BLURRYTUNNELYCOUNTER
     move.l BLURRYTUNNELADDR(PC),a5
     cmp.l #0,a5

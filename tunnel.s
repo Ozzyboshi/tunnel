@@ -134,6 +134,17 @@ coploop:
     dbra            d7,coploop
   ; Copperlist creation END
 
+  ; Call 'AK_Generate' with the following registers set:
+; a0 = Sample Buffer Start Address
+; a1 = 0 Bytes Temporary Work Buffer Address (can be freed after sample rendering complete)
+; a2 = External Samples Address (need not be in chip memory, and can be freed after sample rendering complete)
+; a3 = Rendering Progress Address (2 modes available... see below)
+  lea               OZZYVIRGILHEADER,a0
+  move.l            #$BD6CB612,(a0)+
+  lea               SIN_TABLE(PC),a1
+  lea               SIN_TABLE2(PC),a2
+  jsr               AK_Generate
+
   ; SIN table prepare START
   lea               SIN_Q1_7_UNSIGNED_QUADRANT_1,a0
   lea               SIN_TABLE(PC),a1
@@ -226,7 +237,7 @@ loop:
   SETBITPLANE       0,a6
   addq              #4,a6
   ; y cycle start
-  move.w            #SCREEN_RES_Y*3,d7
+  move.w            #(SCREEN_RES_Y*3)-1,d7
 tunnel_y_prepare:
 
 ; x cycle start
@@ -1203,11 +1214,16 @@ COPLINES: dcb.l 4*64,0
   ;include P6112-Play.i
   ;include music_ptr_linkable2.s
   ;incbin tunnel.mod
+  include instruments/ozzyvirgil.s
 
-BASSDRUM2:
-  ;incbin bassdrum2.raw
-LSPBank:  incbin tunnel.lsbank
-LSPMusic:  incbin tunnel.lsmusic
+;LSPBank:  incbin instruments/ozzyvirgil.lsbank
+  ;dcb.b 4004,0
+
+LSPMusic:  incbin instruments/ozzyvirgil.lsmusic
+  even
+LSPBank:
+OZZYVIRGILHEADER: dc.l 0
+OZZYVIRGIL: dcb.b 8350,0
 
   end
 
