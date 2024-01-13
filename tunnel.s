@@ -372,6 +372,14 @@ tunnelend:
   move.w            #$000,$dff180
   ENDC
 
+  move.l d3,d5
+  divu #24,d5
+  swap d5
+  
+  lea COLORTABLE(PC),a5
+  add.w d5,d5
+  move.w 0(a5,d5.w),$DFF184
+  
   ; load bitplanes in copperlist
   lea               BPLPTR2,a5
   move.l            SCREEN_PTR_1,d5
@@ -388,6 +396,35 @@ exit_demo:
   bsr.w             Restore_all
   clr.l             d0
   rts
+
+; Color table
+COLORTABLE:
+  dc.w $000 ; 0
+  dc.w $00F ; 1
+  dc.w $00F ; 2
+  dc.w $00E ; 4
+  dc.w $00E ; 5
+  dc.w $00D ; 6
+  dc.w $00D ; 7
+  dc.w $00B ; 8
+  dc.w $00B ; 9
+  dc.w $00A ; 10
+  dc.w $00A ; 11
+  dc.w $009 ; 12
+  dc.w $009 ; 0
+  dc.w $008 ; 1
+  dc.w $008 ; 2
+  dc.w $007 ; 3
+  dc.w $007 ; 4
+  dc.w $006 ; 5
+  dc.w $006 ; 6
+  dc.w $005 ; 7
+  dc.w $005 ; 8
+  dc.w $004 ; 9
+  dc.w $003 ; 10
+  dc.w $002 ; 11
+  dc.w $001 ; 12
+  dc.w $000 ; 12
 
 ; Routine to generate a XOR texture
 XOR_TEXTURE:
