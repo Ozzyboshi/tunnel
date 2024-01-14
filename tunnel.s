@@ -372,13 +372,15 @@ tunnelend:
   move.w            #$000,$dff180
   ENDC
 
-  move.l d3,d5
-  divu #24,d5
-  swap d5
-  
+  move.w BEATCOUNTER,d5
+  subi.w #2,d5
+  bne.s noresetbeatcounter
+  move.w #48,d5
+noresetbeatcounter:
+
   lea COLORTABLE(PC),a5
-  add.w d5,d5
   move.w 0(a5,d5.w),$DFF184
+  move.w d5,BEATCOUNTER
   
   ; load bitplanes in copperlist
   lea               BPLPTR2,a5
@@ -397,34 +399,37 @@ exit_demo:
   clr.l             d0
   rts
 
+; Beatcounter
+BEATCOUNTER: dc.w 48
+
 ; Color table
 COLORTABLE:
-  dc.w $000 ; 0
-  dc.w $00F ; 1
-  dc.w $00F ; 2
-  dc.w $00E ; 4
-  dc.w $00E ; 5
-  dc.w $00D ; 6
-  dc.w $00D ; 7
-  dc.w $00B ; 8
-  dc.w $00B ; 9
-  dc.w $00A ; 10
-  dc.w $00A ; 11
-  dc.w $009 ; 12
-  dc.w $009 ; 0
-  dc.w $008 ; 1
-  dc.w $008 ; 2
-  dc.w $007 ; 3
-  dc.w $007 ; 4
-  dc.w $006 ; 5
-  dc.w $006 ; 6
-  dc.w $005 ; 7
-  dc.w $005 ; 8
-  dc.w $004 ; 9
-  dc.w $003 ; 10
-  dc.w $002 ; 11
-  dc.w $001 ; 12
-  dc.w $000 ; 12
+  dc.w $101 ; 0
+  dc.w $202 ; 1
+  dc.w $303 ; 2
+  dc.w $404 ; 4
+  dc.w $505 ; 5
+  dc.w $505 ; 6
+  dc.w $606 ; 7
+  dc.w $606 ; 8
+  dc.w $707 ; 9
+  dc.w $707 ; 10
+  dc.w $808 ; 11
+  dc.w $808 ; 12
+  dc.w $909 ; 0
+  dc.w $909 ; 1
+  dc.w $A0A ; 2
+  dc.w $A0A ; 3
+  dc.w $B0B ; 4
+  dc.w $B0B ; 5
+  dc.w $C0C ; 6
+  dc.w $C0C ; 7
+  dc.w $D0D ; 8
+  dc.w $D0D ; 9
+  dc.w $E0E ; 10
+  dc.w $E0E ; 11
+  dc.w $F0F ; 12
+  dc.w $F0F ; 12
 
 ; Routine to generate a XOR texture
 XOR_TEXTURE:
@@ -688,10 +693,10 @@ Name:                 dc.b "graphics.library",0
   even
 
   include "blurryeffect.s"
-  include "normaleffect.s"
-  include "vshrink.s"
-  include "vnormal.s"
-  include "noeffect.s"
+  ;include "normaleffect.s"
+  ;include "vshrink.s"
+  ;include "vnormal.s"
+  ;include "noeffect.s"
   include "sin.i"
 
 	include "AProcessing/libs/rasterizers/processing_bitplanes_fast.s"
