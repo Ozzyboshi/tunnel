@@ -217,7 +217,7 @@ LSP_MusicPlayTick:
 
 .resetv:	dc.l	0,0,0,0
 
-
+	IFD LSP_EXTRAS
 ;------------------------------------------------------------------
 ;
 ;	LSP_MusicSetPos
@@ -258,6 +258,7 @@ LSP_MusicSetPos:
 LSP_MusicGetPos:
 			move.w	(LSP_State+m_currentSeq)(pc),d0
 			rts
+	ENDC
 
 	rsreset
 	

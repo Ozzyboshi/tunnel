@@ -140,7 +140,7 @@ coploop:
 ; a2 = External Samples Address (need not be in chip memory, and can be freed after sample rendering complete)
 ; a3 = Rendering Progress Address (2 modes available... see below)
   lea               OZZYVIRGILHEADER,a0
-  move.l            #$BD6CB612,(a0)+
+  move.l            #$1c14c1e4,(a0)+
   lea               SIN_TABLE(PC),a1
   lea               SIN_TABLE2(PC),a2
   jsr               AK_Generate
@@ -1251,16 +1251,19 @@ COPLINES: dcb.l 4*64,0
   ;include P6112-Play.i
   ;include music_ptr_linkable2.s
   ;incbin tunnel.mod
-  include instruments/ozzyvirgil.s
+  ;include instruments/ozzyvirgil.s
+  include music/exemusic.asm
 
 ;LSPBank:  incbin instruments/ozzyvirgil.lsbank
   ;dcb.b 4004,0
 
-LSPMusic:  incbin instruments/ozzyvirgil.lsmusic
+LSPMusic:
+  incbin music/ozzyvirgil3.lsmusic
   even
 LSPBank:
 OZZYVIRGILHEADER: dc.l 0
-OZZYVIRGIL: dcb.b 8350,0
+OZZYVIRGIL: dcb.b 16542,0
+;  incbin music/ozzyvirgil2.lsbank
 
   end
 
