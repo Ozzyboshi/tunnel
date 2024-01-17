@@ -91,7 +91,7 @@ ATAN2_128_QUADRANT: dcb.b 4096,0
   include "atan2_delta_table.i"
 
   SECTION             CiriCop,CODE_C
-EFFECT_FUNCTION:    dc.l      BLURRYTUNNEL
+;EFFECT_FUNCTION:    dc.l      BLURRYTUNNEL
 
 TRANSFORMATION_TABLE_Y:
   dcb.w SCREEN_RES_X*2*SCREEN_RES_Y*2,0
@@ -121,7 +121,17 @@ Inizio:
   move.w            #$c00,$106(a6)                                                 ; BPLCON3 - NO AGA
 
   ; Copperlist creation START
-  lea               COPLINES,a0
+  lea               BPLPTR1,a0
+  move.l            #$e00000,d0
+  move.l            d0,(a0)+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+
+  ;lea               COPLINES,a0
   moveq             #SCREEN_RES_Y-1,d7
   move.l            #$2BE3FFFE,d0
 coploop:
@@ -145,8 +155,20 @@ coploop:
   lea               SIN_TABLE2(PC),a2
   jsr               AK_Generate
 
+  ; SIN first quadrant start
+  lea               SIN_Q1_7_UNSIGNED_QUADRANT_1_SOURCE,a0
+  lea               SIN_Q1_7_UNSIGNED_QUADRANT_1_DEST,a1
+  moveq             #0,d1
+  move.w            #128-1,d7
+loopsin:
+    move.w          (a0)+,d0
+    add.w           d1,d0
+    move.b          d0,(a1)+
+    move.w          d0,d1
+    dbra            d7,loopsin
+
   ; SIN table prepare START
-  lea               SIN_Q1_7_UNSIGNED_QUADRANT_1,a0
+  lea               SIN_Q1_7_UNSIGNED_QUADRANT_1_DEST,a0
   lea               SIN_TABLE(PC),a1
   lea               SIN_TABLE2(PC),a2
 
@@ -184,7 +206,7 @@ sin_quadrant_2:
   ; quadrant 2 - end
 
   ; quadrant 3 - start
-  lea               SIN_Q1_7_UNSIGNED_QUADRANT_1,a0
+  lea               SIN_Q1_7_UNSIGNED_QUADRANT_1_DEST,a0
   moveq             #128-1,d7
 sin_quadrant_3:
   moveq             #0,d0
@@ -243,8 +265,8 @@ tunnel_y_prepare:
 ; x cycle start
   moveq             #SCREEN_RES_X/4-1,d6
 tunnel_x_prepare:
-  move.w            #$FFFF,(a6)+
-  ;move.w             #%1010101010101010,(a6)+
+  ;move.w            #$FFFF,(a6)+
+  move.w             #%1010101010101010,(a6)+
   ;move.w            #$FE7F,(a6)+
   dbra              d6,tunnel_x_prepare
 
@@ -265,7 +287,7 @@ tunnel_x_prepare:
   bsr.w             GENERATE_TRANSFORMATION_TABLE_X
 
   ; Set colors
-  move.w            #$222,$dff180
+  move.w            #$F,$dff180
   move.w            #$888,$dff182
   move.w            #$00f,$dff184
   move.w            #$0,$dff186
@@ -281,6 +303,43 @@ tunnel_x_prepare:
 	suba.l	          a2,a2			; suppose VBR=0 ( A500 )
 	moveq	            #0,d0			; suppose PAL machine
 	bsr.w		          LSP_MusicDriver_CIA_Start
+
+  ; Write text
+  lea TXT,a0
+  SETBITPLANE       0,a6
+  add.l #200*40,a6
+  moveq #0,d1
+  lea FONTS,a1
+nextletter:
+  moveq #0,d0
+  move.b (a0),d0
+  beq.s txtend
+
+  ; manage newline start
+  cmp.b #$FF,d0
+  bne.s validletter
+  add.w #1*8*40,d1
+  SETBITPLANE       0,a6
+  add.l #200*40,a6
+  add.w d1,a6
+  addq #1,a0
+  bra.s nextletter
+  ; manage newline end
+
+validletter:
+  subi.w #$30,d0
+  muls #6,d0
+  move.b 0(a1,d0.w),(a6)
+  move.b 1(a1,d0.w),40(a6)
+  move.b 2(a1,d0.w),80(a6)
+  move.b 3(a1,d0.w),120(a6)
+  move.b 4(a1,d0.w),160(a6)
+  move.b 5(a1,d0.w),200(a6)
+  addq #1,a6
+  addq #1,a0
+
+  bra.s nextletter
+txtend:
 
   moveq             #0,d3 ; reset current time variable
   move.l            #40*256*2*-1,d6
@@ -365,8 +424,8 @@ tunnel_y:
 
   dbra              d7,tunnel_y
 tunnelend:
-  move.l            EFFECT_FUNCTION,a5
-  jsr               (a5)
+  ;move.l            EFFECT_FUNCTION,a5
+  ;jsr               (a5)
 
   IFD COLORDEBUG
   move.w            #$000,$dff180
@@ -692,7 +751,7 @@ SaveIRQ:              dc.l 0
 Name:                 dc.b "graphics.library",0
   even
 
-  include "blurryeffect.s"
+  ;include "blurryeffect.s"
   ;include "normaleffect.s"
   ;include "vshrink.s"
   ;include "vnormal.s"
@@ -737,9 +796,11 @@ COPPERLIST:
 
 ; Bitplanes Pointers
 BPLPTR1:
-  dc.w       $e0,$0000,$e2,$0000                                       ;first	 bitplane - BPL0PT
+;  dc.w       $e0,$0000,$e2,$0000                                       ;first	 bitplane - BPL0PT
+  dc.l 0,0
 BPLPTR2:
-  dc.w       $e4,$0000,$e6,$0000                                       ;second bitplane - BPL1PT
+;  dc.w       $e4,$0000,$e6,$0000                                       ;second bitplane - BPL1PT
+  dc.l 0,0
 
 COPLINES: dcb.l 4*64,0
   IFD   LOL
@@ -1269,6 +1330,11 @@ LSPBank:
 OZZYVIRGILHEADER: dc.l 0
 OZZYVIRGIL: dcb.b 16542,0
 ;  incbin music/ozzyvirgil2.lsbank
-
+  dc.w 0
+TXT:
+  dc.b "FOLLOW[PHAZE[101",$FF,"THE[GREAT[RETROPROGRAMMING[COMMUNITY",$FF,"FOR[THE[C64[AND[THE[AMIGA",0
+FONTS:
+  incbin fonts/fonts.raw
+  dc.b 0,0,0,0,0,0
   end
 
