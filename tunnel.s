@@ -431,17 +431,23 @@ tunnelend:
   move.w            #$000,$dff180
   ENDC
 
-  move.w BEATCOUNTER,d5
-  subi.w #2,d5
-  bne.s noresetbeatcounter
-  move.w #48,d5
-noresetbeatcounter:
-
   lea COLORTABLE(PC),a5
+
+  btst #0,Lsp_Beat+1
+  beq.s colorcycle
+  bclr #0,Lsp_Beat+1
+  move.w #48,BEATCOUNTER
+  move.w 48(a5),$DFF184
+  bra.s loadbitplanes
+
+colorcycle:
+  move.w BEATCOUNTER,d5
+  subq #2,d5
   move.w 0(a5,d5.w),$DFF184
   move.w d5,BEATCOUNTER
   
   ; load bitplanes in copperlist
+loadbitplanes:
   lea               BPLPTR2,a5
   move.l            SCREEN_PTR_1,d5
   POINTINCOPPERLIST

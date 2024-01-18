@@ -176,6 +176,11 @@ LSP_MusicPlayTick:
 .setIns:	add.w	(a0)+,a2
 			add.w	d0,d0
 			bcc.s	.noReset
+
+			bset    d2,Lsp_Beat+1 ; added by Ozzyboshi to mark which channel has been played
+
+.nosync:
+
 			bset	d2,d1
 			move.w	d1,$96-$a0(a6)
 .noReset:	move.l	(a2)+,(a5)
@@ -280,3 +285,4 @@ m_escCodeGetPos:	rs.w	1
 sizeof_LSPVars:		rs.w	0
 
 LSP_State:			ds.b	sizeof_LSPVars
+Lsp_Beat: 			dc.w 1
