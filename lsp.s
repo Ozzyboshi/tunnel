@@ -285,4 +285,4 @@ m_escCodeGetPos:	rs.w	1
 sizeof_LSPVars:		rs.w	0
 
 LSP_State:			ds.b	sizeof_LSPVars
-Lsp_Beat: 			dc.w 1
+Lsp_Beat: 			dc.w 	1

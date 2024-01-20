@@ -9,6 +9,17 @@ TEXTURE_HEIGHT equ 16
 RATIOX EQU 30
 RATIOY EQU 4
 
+MEMCPY2 MACRO
+	move.l #\3,d7
+	subq   #1,d7
+	lea \1,a0
+	lea \2,a1
+.1\@
+	move.w (a0)+,(a1)
+  neg.w (a1)+
+	dbra d7,.1\@
+	ENDM
+
 PRINT_PIXELS MACRO
   ; start first pixel
   ; read transformation table (distance table)
@@ -135,20 +146,49 @@ Inizio:
   moveq             #SCREEN_RES_Y-1,d7
   move.l            #$2BE3FFFE,d0
 coploop:
-    move.l          d0,(a0)+
-    move.l          #$010AFFD8,(a0)+
-    add.l           #1*33554432,d0
-    move.l          d0,(a0)+
-    move.l          #$010A0000,(a0)+
-    add.l           #1*16777216,d0
-    dbra            d7,coploop
+  move.l            d0,(a0)+
+  move.l            #$010AFFD8,(a0)+
+  add.l             #1*33554432,d0
+  move.l            d0,(a0)+
+  move.l            #$010A0000,(a0)+
+  add.l             #1*16777216,d0
+  dbra              d7,coploop
   ; Copperlist creation END
 
+  ; Start creating color table
+  moveq             #24-1,d7
+  moveq             #0,d0
+  lea               COLORTABLE(PC),a0
+colorloop:
+  moveq             #0,d1
+  moveq             #24,d2
+  moveq             #0,d3
+  move.w            #$F,d4
+
+  ; MAP execution - start
+  move.l            d0,d5
+  sub.w             d3,d4 ; d4 = output_end - output_start
+  sub.w             d1,d2 ; d2 = input_end - input_start
+  sub.w             d1,d0 ; d0 = (input - input_start)
+  muls              d0,d4
+  divs              d2,d4
+  add.w             d3,d4
+  move.l            d5,d0
+  ; Map execution - end
+
+  move.w            d4,d1
+  lsl.w             #8,d4
+  or.w              d1,d4
+  move.w            d4,(a0)+
+  addq              #1,d0
+  dbra              d7,colorloop
+  ; Stop creating color table
+
   ; Call 'AK_Generate' with the following registers set:
-; a0 = Sample Buffer Start Address
-; a1 = 0 Bytes Temporary Work Buffer Address (can be freed after sample rendering complete)
-; a2 = External Samples Address (need not be in chip memory, and can be freed after sample rendering complete)
-; a3 = Rendering Progress Address (2 modes available... see below)
+  ; a0 = Sample Buffer Start Address
+  ; a1 = 0 Bytes Temporary Work Buffer Address (can be freed after sample rendering complete)
+  ; a2 = External Samples Address (need not be in chip memory, and can be freed after sample rendering complete)
+  ; a3 = Rendering Progress Address (2 modes available... see below)
   lea               OZZYVIRGILHEADER,a0
   move.l            #$1c14c1e4,(a0)+
   lea               SIN_TABLE(PC),a1
@@ -161,11 +201,11 @@ coploop:
   moveq             #0,d1
   move.w            #128-1,d7
 loopsin:
-    move.w          (a0)+,d0
-    add.w           d1,d0
-    move.b          d0,(a1)+
-    move.w          d0,d1
-    dbra            d7,loopsin
+  move.w            (a0)+,d0
+  add.w             d1,d0
+  move.b            d0,(a1)+
+  move.w            d0,d1
+  dbra              d7,loopsin
 
   ; SIN table prepare START
   lea               SIN_Q1_7_UNSIGNED_QUADRANT_1_DEST,a0
@@ -204,6 +244,9 @@ sin_quadrant_2:
   move.w            d0,(a2)+
   dbra              d7,sin_quadrant_2
   ; quadrant 2 - end
+
+  ;MEMCPY2 SIN_TABLE,SIN_TABLE+128*2,512/2
+  ;MEMCPY2 SIN_TABLE2,SIN_TABLE2+128*2,512/2
 
   ; quadrant 3 - start
   lea               SIN_Q1_7_UNSIGNED_QUADRANT_1_DEST,a0
@@ -266,7 +309,7 @@ tunnel_y_prepare:
   moveq             #SCREEN_RES_X/4-1,d6
 tunnel_x_prepare:
   ;move.w            #$FFFF,(a6)+
-  move.w             #%1010101010101010,(a6)+
+  move.w            #%1010101010101010,(a6)+
   ;move.w            #$FE7F,(a6)+
   dbra              d6,tunnel_x_prepare
 
@@ -289,7 +332,7 @@ tunnel_x_prepare:
   ; Set colors
   move.w            #$F,$dff180
   move.w            #$888,$dff182
-  move.w            #$00f,$dff184
+  ;move.w            #$00f,$dff184
   move.w            #$0,$dff186
 
   ; set modulo
@@ -468,33 +511,33 @@ exit_demo:
 BEATCOUNTER: dc.w 48
 
 ; Color table
-COLORTABLE:
-  dc.w $101 ; 0
-  dc.w $202 ; 1
-  dc.w $303 ; 2
-  dc.w $404 ; 4
-  dc.w $505 ; 5
-  dc.w $505 ; 6
-  dc.w $606 ; 7
-  dc.w $606 ; 8
-  dc.w $707 ; 9
-  dc.w $707 ; 10
-  dc.w $808 ; 11
-  dc.w $808 ; 12
-  dc.w $909 ; 0
-  dc.w $909 ; 1
-  dc.w $A0A ; 2
-  dc.w $A0A ; 3
-  dc.w $B0B ; 4
-  dc.w $B0B ; 5
-  dc.w $C0C ; 6
-  dc.w $C0C ; 7
-  dc.w $D0D ; 8
-  dc.w $D0D ; 9
-  dc.w $E0E ; 10
-  dc.w $E0E ; 11
-  dc.w $F0F ; 12
-  dc.w $F0F ; 12
+COLORTABLE: dcb.w 48,0
+  ;dc.w $101 ; 0
+  ;dc.w $202 ; 1
+  ;dc.w $303 ; 2
+  ;dc.w $404 ; 4
+  ;dc.w $505 ; 5
+  ;dc.w $505 ; 6
+  ;dc.w $606 ; 7
+  ;dc.w $606 ; 8
+  ;dc.w $707 ; 9
+  ;dc.w $707 ; 10
+  ;dc.w $808 ; 11
+  ;dc.w $808 ; 12
+  ;dc.w $909 ; 0
+  ;dc.w $909 ; 1
+  ;dc.w $A0A ; 2
+  ;dc.w $A0A ; 3
+  ;dc.w $B0B ; 4
+  ;dc.w $B0B ; 5
+  ;dc.w $C0C ; 6
+  ;dc.w $C0C ; 7
+  ;dc.w $D0D ; 8
+  ;dc.w $D0D ; 9
+  ;dc.w $E0E ; 10
+  ;dc.w $E0E ; 11
+  ;dc.w $F0F ; 12
+  ;dc.w $F0F ; 12
 
 ; Routine to generate a XOR texture
 XOR_TEXTURE:
@@ -765,6 +808,7 @@ Name:                 dc.b "graphics.library",0
   include "sin.i"
 
 	include "AProcessing/libs/rasterizers/processing_bitplanes_fast.s"
+  ;include "AProcessing/libs/precalc/map.s"
 
 ;----------------------------------------------------------------
 
