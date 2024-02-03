@@ -126,7 +126,7 @@ LSP_MusicPlayTickMicro:
 			move.w	(a0)+,4(a6)
 			move.l	(a0)+,(a3)+
 			move.w	(a0)+,(a3)+
-			;bset    d7,Lsp_Beat+1 ; added by Ozzyboshi to mark which channel has been played
+						bset    d7,Lsp_Beat+1 ; added by Ozzyboshi to mark which channel has been played
 
 
 .noInstr:

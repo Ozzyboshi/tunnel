@@ -480,9 +480,9 @@ tunnelend:
 
   lea COLORTABLE(PC),a5
 
-  btst #0,Lsp_Beat+1
-  ;beq.s colorcycle
-  bclr #0,Lsp_Beat+1
+  btst #3,Lsp_Beat+1
+  beq.s colorcycle
+  bclr #3,Lsp_Beat+1
   move.w #48,BEATCOUNTER
   move.w 48(a5),$DFF184
   bra.s loadbitplanes

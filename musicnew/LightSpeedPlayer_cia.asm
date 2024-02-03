@@ -42,6 +42,8 @@ LSP_MusicDriver_CIA_Start:
 			move.w	d0,(a2)
 			moveq	#1,d1
 			and.w	(a7)+,d1
+			;lsr.w #1,d0
+			DEBUG 1111
 			bsr.s	.LSP_IrqInstall
 
 			rts
