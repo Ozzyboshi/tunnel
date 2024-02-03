@@ -9,6 +9,8 @@ TEXTURE_HEIGHT equ 16
 RATIOX EQU 30
 RATIOY EQU 4
 
+LSBANK_HEADER EQU $84967184
+
 MEMCPY2 MACRO
 	move.l #\3,d7
 	subq   #1,d7
@@ -109,8 +111,10 @@ TRANSFORMATION_TABLE_Y:
 SIN_TABLE:          dcb.w 128*4,0
 SIN_TABLE2:         dcb.w 128*4,0
 
-  include lsp.s
-  include lsp_cia.s
+  include "musicnew/LightSpeedPlayer_Micro.asm"
+  include "musicnew/LightSpeedPlayer_cia.asm"
+  ;include "musicnew/LightSpeedPlayer.asm"
+  ;include "musicnew/lsp.s"
 
 Inizio:
   bsr.w             Save_all
@@ -190,7 +194,7 @@ colorloop:
   ; a2 = External Samples Address (need not be in chip memory, and can be freed after sample rendering complete)
   ; a3 = Rendering Progress Address (2 modes available... see below)
   lea               OZZYVIRGILHEADER,a0
-  move.l            #$1c14c1e4,(a0)+
+  move.l            #LSBANK_HEADER,(a0)+
   lea               SIN_TABLE(PC),a1
   lea               SIN_TABLE2(PC),a2
   jsr               AK_Generate
@@ -477,7 +481,7 @@ tunnelend:
   lea COLORTABLE(PC),a5
 
   btst #0,Lsp_Beat+1
-  beq.s colorcycle
+  ;beq.s colorcycle
   bclr #0,Lsp_Beat+1
   move.w #48,BEATCOUNTER
   move.w 48(a5),$DFF184
@@ -1374,7 +1378,7 @@ COPLINES: dcb.l 4*64,0
   ;dcb.b 4004,0
 
 LSPMusic:
-  incbin music/ozzyvirgil3.lsmusic
+  incbin musicnew/ozzyvirgil3_micro.lsmusic
   even
 LSPBank:
 OZZYVIRGILHEADER: dc.l 0
@@ -1386,5 +1390,7 @@ TXT:
 FONTS:
   incbin fonts/fonts.raw
   dc.b 0,0,0,0,0,0
+SPACESHIP:
+  include "sprites/spaceship_back_left.s"
   end
 
