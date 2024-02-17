@@ -9,7 +9,7 @@ TEXTURE_HEIGHT equ 16
 RATIOX EQU 30
 RATIOY EQU 4
 
-LSBANK_HEADER EQU $84967184
+LSBANK_HEADER EQU $3808625A
 
 MEMCPY2 MACRO
 	move.l #\3,d7
@@ -100,6 +100,10 @@ POINTINCOPPERLIST MACRO
   include "AProcessing/libs/rasterizers/globaloptions.s"
   include "AProcessing/libs/math/operations.s"
   include "AProcessing/libs/math/atan2_pi_128.s"
+  IFD USE_MIRRORED_SPRITES
+  include "AProcessing/libs/precalc/mirror_word_macro.s"
+  include "AProcessing/libs/precalc/mirror_word_function.s"
+  ENDC
 ATAN2_128_QUADRANT: dcb.b 4096,0
   include "atan2_delta_table.i"
 
@@ -111,17 +115,15 @@ TRANSFORMATION_TABLE_Y:
 SIN_TABLE:          dcb.w 128*4,0
 SIN_TABLE2:         dcb.w 128*4,0
 
-  include "musicnew/LightSpeedPlayer_Micro.asm"
-  include "musicnew/LightSpeedPlayer_cia.asm"
-  ;include "musicnew/LightSpeedPlayer.asm"
-  ;include "musicnew/lsp.s"
+  include "musiclsp123/LightSpeedPlayer_Micro.asm"
+  include "musiclsp123/LightSpeedPlayer_cia.asm"
 
 Inizio:
   bsr.w             Save_all
 
   lea               $dff000,a6
   move              #$7ff,$96(a6)                                                  ;Disable DMAs
-  move              #%1000001110000000,$96(a6)                                     ;Master,Copper,Blitter,Bitplanes
+  move              #%1000001110100000,$96(a6)                                     ;Master,Copper,Blitter,Bitplanes
   move              #$7fff,$9a(a6)                                                 ;Disable IRQs
   move              #$e000,$9a(a6)                                                 ;Master and lev6
 					;NO COPPER-IRQ!
@@ -221,6 +223,8 @@ loopsin:
   moveq             #0,d0
 sin_quadrant_1:
   moveq             #0,d0
+    DEBUG 1111
+
   move.b            (a0)+,d0
   asr.w             #1,d0
   move.w            d0,d1
@@ -328,6 +332,44 @@ tunnel_x_prepare:
   move.l            SCREEN_PTR_0,d5
   POINTINCOPPERLIST
 
+  IFD USE_MIRRORED_SPRITES
+    ; create right part of the spaceship sprite
+    lea MYSPRITE0+4,a0
+    lea MYSPRITE1+4,a1
+    lea MYSPRITE00+4,a2
+    lea MYSPRITE01+4,a3
+    moveq #22-1,d5
+ciao:
+    move.w (a0)+,d0
+    jsr MIRROR_WORD_F
+    move.w d1,(a1)+
+    move.w (a2)+,d0
+    jsr MIRROR_WORD_F
+    move.w d1,(a3)+
+    dbra d5,ciao
+    ENDC
+
+    ; init sprites
+  ; Sprite 0 init
+  MOVE.L              #MYSPRITE0,d5
+  LEA                 SpritePointers,a5
+  POINTINCOPPERLIST
+
+  ; Sprite 1 init
+  MOVE.L              #MYSPRITE00,d5
+  LEA                 SpritePointers+8,a5
+  POINTINCOPPERLIST
+
+  ; Sprite 1 init
+  MOVE.L              #MYSPRITE1,d5
+  LEA                 SpritePointers+16,a5
+  POINTINCOPPERLIST
+
+  ; Sprite 2 init
+  MOVE.L              #MYSPRITE01,d5
+  LEA                 SpritePointers+24,a5
+  POINTINCOPPERLIST
+
   bsr.w             GENERATE_TRANSFORMATION_TABLE_Y
 
   ; Generate transformation table for distance
@@ -425,6 +467,8 @@ mouse:
   move.w            0(a3,d7.w),d7
   ; SHIFTX END
 
+  jsr movespritex
+
   ; SHIFTY START
   lea               SIN_TABLE2(PC),a3
   move.l            d3,d0
@@ -432,6 +476,7 @@ mouse:
   andi.w            #%111111111,d0 ; Module of 512
   add.w             d0,d0
   move.w            0(a3,d0.w),d0
+  jsr movespritey
   add.w             d0,d7
   ; SHIFTY END
 
@@ -509,6 +554,73 @@ exit_demo:
   bsr.w             LSP_MusicDriver_CIA_Stop
   bsr.w             Restore_all
   clr.l             d0
+  rts
+
+movespritex:
+  lea                   MYSPRITE0,a3
+  lea                   MYSPRITE1,a4
+   ; if d0 is odd we are moving the spaceship to an odd location, in this case we must set
+   move.w d7,d0
+   lsr.w #1,d0
+   add.w #$90-8,d0
+  btst                 #0,d0
+  beq.s                .fspaceship2_no_odd_x
+  bset                 #0,3(a3)
+  bset                 #0,3+1*4+11*4+1*4(a3)
+  bset                 #0,3(a4)
+  bset                 #0,3+1*4+11*4+1*4(a4)
+  bra.s                .fspaceship2_place_coords
+.fspaceship2_no_odd_x:
+  bclr                 #0,3(a3)
+  bclr                 #0,3+1*4+11*4+1*4(a3)
+  bclr                 #0,3(a4)
+  bclr                 #0,3+1*4+11*4+1*4(a4)
+.fspaceship2_place_coords:
+  move.b               d0,1(a3)
+  move.b               d0,1+1*4+11*4+1*4(a3)
+
+  addq #8,d0
+  move.b               d0,1(a4)
+  move.b               d0,1+1*4+11*4+1*4(a4)
+  ;subq  #8,d7
+
+
+  ;sub.w #$90-8,d7
+
+  ;move.b               d1,(a3)
+  ;move.b               d1,(a4)
+
+  ;add.w                d7,d1
+
+  ;move.b               d1,2(a0)
+  ;move.b               d1,2(a1)
+  rts
+
+movespritey:
+  lea                   MYSPRITE0,a3
+  lea                   MYSPRITE1,a4
+  swap d7
+    ;DEBUGRAW 1111,d7
+
+  move.w d0,d7
+  lsr.w #7,d7
+
+  add.w #$80,d7
+
+  move.b               d7,(a3)
+   move.b               d7,1*4+11*4+1*4(a3)
+  move.b               d7,(a4)
+  move.b               d7,1*4+11*4+1*4(a4)
+
+  add.w #11,d7
+  move.b               d7,2(a3)
+  move.b               d7,2+1*4+11*4+1*4(a3)
+  move.b               d7,2(a4)
+  move.b               d7,2+1*4+11*4+1*4(a4)
+  swap d7
+  ;sub.w #11,d0
+  ;sub.w #$30,d0
+
   rts
 
 ; Beatcounter
@@ -841,12 +953,47 @@ COPPERLIST:
 	;dc.w	$0182,$f00	; color1 - SCRITTE
 	;dc.w	$0184,$0f0	; color2 - SCRITTE
 	;dc.w	$0186,$00f	; color3 - SCRITTE
-  dc.w       $104,$0000
+  dc.w       $104,$0064
 
   dc.w       $108,0                                                    ; Bpl1Mod
   dc.w       $10a,0
 
   COPSET2BPL
+
+;dc.w    $1a0,$000    ; color transparency
+  dc.w    $1a2,$213    ; color17
+  dc.w    $1a4,$446    ; color18
+  dc.w    $1a6,$ccd    ; color19
+  dc.w    $1a8,$679    ; color20
+  dc.w    $1aa,$235    ; color21
+  dc.w    $1ac,$99b    ; color22
+  dc.w    $1ae,$394    ; color23
+  dc.w    $1b0,$cf7    ; color24
+
+SpritePointers:
+Sprite0pointers:
+  dc.w       $120,$0000,$122,$0000
+
+Sprite1pointers:
+  dc.w       $124,$0000,$126,$0000
+
+Sprite2pointers:
+  dc.w       $128,$0000,$12a,$0000
+
+Sprite3pointers:
+  dc.w       $12c,$0000,$12e,$0000
+
+Sprite4pointers:
+  dc.w       $130,$0000,$132,$0000
+
+Sprite5pointers:
+  dc.w       $134,$0000,$136,$0000
+
+Sprite6pointers;
+  dc.w       $138,$0000,$13a,$0000
+
+Sprite7pointers:
+  dc.w       $13c,$0000,$13e,$0000
 
 ; Bitplanes Pointers
 BPLPTR1:
@@ -1378,7 +1525,7 @@ COPLINES: dcb.l 4*64,0
   ;dcb.b 4004,0
 
 LSPMusic:
-  incbin musicnew/ozzyvirgil3_micro.lsmusic
+  incbin musiclsp123/ozzyvirgil3_micro.lsmusic
   even
 LSPBank:
 OZZYVIRGILHEADER: dc.l 0
@@ -1392,5 +1539,6 @@ FONTS:
   dc.b 0,0,0,0,0,0
 SPACESHIP:
   include "sprites/spaceship_back_left.s"
+  include "sprites/spaceship_back_right.s"
   end
 

@@ -33,7 +33,8 @@ LSP_MusicDriver_CIA_Start:
 			lea		$78(a2),a2
 			move.l	a2,(a3)
 			lea		.LSPDmaCon+1(pc),a2		; DMACON byte patch address
-			bsr		LSP_MusicInitMicro			; init the LSP player ( whatever fast or insane version )
+			;bsr		LSP_MusicInit			; init the LSP player ( whatever fast or insane version )
+			bsr LSP_MusicInitMicro
 
 			lea		.pMusicBPM(pc),a2
 			move.l	a0,(a2)					; store music BPM pointer
@@ -42,7 +43,6 @@ LSP_MusicDriver_CIA_Start:
 			move.w	d0,(a2)
 			moveq	#1,d1
 			and.w	(a7)+,d1
-			move.l #$7d,d0
 			bsr.s	.LSP_IrqInstall
 
 			rts
@@ -93,7 +93,8 @@ LSP_MusicDriver_CIA_Start:
 
 		; call player tick
 			lea		$dff0a0,a6
-			bsr		LSP_MusicPlayTickMicro		; LSP main music driver tick
+			;bsr		LSP_MusicPlayTick		; LSP main music driver tick
+			bsr LSP_MusicPlayTickMicro
 
 		; check if BMP changed in the middle of the music
 			move.l	.pMusicBPM(pc),a0
