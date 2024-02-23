@@ -1,7 +1,7 @@
 MYSPRITE0
-VSTART0	dc.b $30
-HSTART0	dc.b $90
-VSTOP0	dc.b $3b,$00
+VSTART0	dc.b 0
+HSTART0	dc.b 0
+VSTOP0	dc.b 0,$00
 	dc.w $0001,$0000 ; line 1
 	dc.w $0002,$0001 ; line 2
 	dc.w $0005,$2003 ; line 3
@@ -16,9 +16,9 @@ VSTOP0	dc.b $3b,$00
 	dc.w 0,0
 
 MYSPRITE00
-VSTART00	dc.b $30
-HSTART00	dc.b	$90
-VSTOP00	dc.b	$3b,%10000000
+VSTART00	dc.b 0
+HSTART00	dc.b	0
+VSTOP00	dc.b	0,%10000000
 	dc.w $0000,$0000 ; line 1
 	dc.w $0000,$0000 ; line 2
 	dc.w $0000,$0000 ; line 3

@@ -1,7 +1,7 @@
 MYSPRITE1
-VSTART1	dc.b $30
-HSTART1	dc.b $98
-VSTOP1	dc.b $3b,$00
+VSTART1	dc.b 0
+HSTART1	dc.b 0
+VSTOP1	dc.b 0,$00
 	IFD USE_MIRRORED_SPRITES
 	dc.w $0,$0 ; line 1
 	dc.w $0,$0 ; line 2
@@ -30,9 +30,9 @@ VSTOP1	dc.b $3b,$00
 	dc.w 0,0
 
 MYSPRITE01
-VSTART01	dc.b $30
-HSTART01	dc.b	$98
-VSTOP01	dc.b	$3b,%10000000
+VSTART01	dc.b 0
+HSTART01	dc.b 0
+VSTOP01	dc.b	0,%10000000
 	IFD USE_MIRRORED_SPRITES
 	dc.w $0,$0 ; line 1
 	dc.w $0,$0 ; line 2

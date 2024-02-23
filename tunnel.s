@@ -88,6 +88,26 @@ PRINT_PIXELS MACRO
   move.w            d1,(a5)+
   ENDM
 
+PROTON_SINUS MACRO
+makesinus:      lea sinus+512(pc),a0
+                move.l a0,a3
+                lea 1026(a3),a1
+                move.l a1,a2
+                move.w #255,d0
+.gen:           move.w d0,d1 
+                move.w d0,d2
+                add.w d1,d1 
+                mulu d2,d2 
+                lsr.w #8,d2 
+                sub.w d2,d1 
+                move.w d1,-(a3)
+                move.w d1,(a0)+
+                neg.w d1
+                move.w d1,-(a1)
+                move.w d1,(a2)+
+                dbf d0,.gen
+  ENDM
+
 
   ; Place addr in d0 and the copperlist pointer addr in a1 before calling
 POINTINCOPPERLIST MACRO
@@ -112,8 +132,11 @@ ATAN2_128_QUADRANT: dcb.b 4096,0
 
 TRANSFORMATION_TABLE_Y:
   dcb.w SCREEN_RES_X*2*SCREEN_RES_Y*2,0
-SIN_TABLE:          dcb.w 128*4,0
-SIN_TABLE2:         dcb.w 128*4,0
+;SIN_TABLE:          dcb.w 128*4,0
+;SIN_TABLE2:         dcb.w 128*4,0
+sinus:              dcb.w 1024,0
+sinus_x:          dcb.w 128*4,0
+sinus_y:          dcb.w 128*4,0
 
   include "musiclsp123/LightSpeedPlayer_Micro.asm"
   include "musiclsp123/LightSpeedPlayer_cia.asm"
@@ -138,7 +161,48 @@ Inizio:
   move.w            #$c00,$106(a6)                                                 ; BPLCON3 - NO AGA
 
   ; Copperlist creation START
-  lea               BPLPTR1,a0
+  lea               SpritePointers,a0
+  move.l            #$1200000,d0
+  move.l            d0,(a0)+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+  add.l             #$20000,d0
+  move.l            d0,(a0)+
+
+  ;lea               BPLPTR1,a0
   move.l            #$e00000,d0
   move.l            d0,(a0)+
   add.l             #$20000,d0
@@ -197,10 +261,13 @@ colorloop:
   ; a3 = Rendering Progress Address (2 modes available... see below)
   lea               OZZYVIRGILHEADER,a0
   move.l            #LSBANK_HEADER,(a0)+
-  lea               SIN_TABLE(PC),a1
-  lea               SIN_TABLE2(PC),a2
+  ;lea               SIN_TABLE(PC),a1
+  lea                sinus_x(PC),a1
+  ;lea               SIN_TABLE2(PC),a2
+  lea                sinus_y(PC),a1
   jsr               AK_Generate
 
+  IFD LOL
   ; SIN first quadrant start
   lea               SIN_Q1_7_UNSIGNED_QUADRANT_1_SOURCE,a0
   lea               SIN_Q1_7_UNSIGNED_QUADRANT_1_DEST,a1
@@ -212,7 +279,31 @@ loopsin:
   move.b            d0,(a1)+
   move.w            d0,d1
   dbra              d7,loopsin
+  ENDC
 
+  ; CREATE SIN table
+  PROTON_SINUS
+
+  lea sinus,a0
+  lea sinus_x,a1
+  lea sinus_y,a2
+  move.w #1024/2-1,d7
+partire:
+  move.w (a0),d0
+  addq #4,a0
+  asr.w #2,d0
+  move.w d0,d1
+  asr.w             #1,d1
+  asl.w             #8,d1
+
+  bclr #0,d0
+  move.w d0,(a1)+
+  move.w d1,(a2)+
+  dbra d7,partire
+
+
+
+  IFD LOL
   ; SIN table prepare START
   lea               SIN_Q1_7_UNSIGNED_QUADRANT_1_DEST,a0
   lea               SIN_TABLE(PC),a1
@@ -223,8 +314,6 @@ loopsin:
   moveq             #0,d0
 sin_quadrant_1:
   moveq             #0,d0
-    DEBUG 1111
-
   move.b            (a0)+,d0
   asr.w             #1,d0
   move.w            d0,d1
@@ -290,8 +379,17 @@ sin_quadrant_4:
   move.w            d0,(a2)+
   dbra              d7,sin_quadrant_4
   ; quadrant 4 - end
+  ENDC
 
   ; SIN table prepare END
+
+  IFD LOL  
+    lea SIN_TABLE,a0
+    lea sinus_x,a1
+    lea SIN_TABLE2,a2
+    lea sinus_y,a3
+    DEBUG 1111
+  ENDC
 
   ; ATAN2 table prepare START
   lea               ATAN2_128_QUADRANT_DELTA,a0
@@ -351,23 +449,23 @@ ciao:
 
     ; init sprites
   ; Sprite 0 init
-  MOVE.L              #MYSPRITE0,d5
-  LEA                 SpritePointers,a5
+  MOVE.L            #MYSPRITE0,d5
+  LEA               SpritePointers,a5
   POINTINCOPPERLIST
 
   ; Sprite 1 init
-  MOVE.L              #MYSPRITE00,d5
-  LEA                 SpritePointers+8,a5
+  MOVE.L            #MYSPRITE00,d5
+  LEA               SpritePointers+8,a5
   POINTINCOPPERLIST
 
   ; Sprite 1 init
-  MOVE.L              #MYSPRITE1,d5
-  LEA                 SpritePointers+16,a5
+  MOVE.L            #MYSPRITE1,d5
+  LEA               SpritePointers+16,a5
   POINTINCOPPERLIST
 
   ; Sprite 2 init
-  MOVE.L              #MYSPRITE01,d5
-  LEA                 SpritePointers+24,a5
+  MOVE.L            #MYSPRITE01,d5
+  LEA               SpritePointers+24,a5
   POINTINCOPPERLIST
 
   bsr.w             GENERATE_TRANSFORMATION_TABLE_Y
@@ -463,14 +561,16 @@ mouse:
   move.l            d3,d7
   andi.w            #%111111111,d7 ; Module of 512
   add.w             d7,d7
-  lea               SIN_TABLE(PC),a3
+  ;lea               SIN_TABLE(PC),a3
+  lea               sinus_x(PC),a3
   move.w            0(a3,d7.w),d7
   ; SHIFTX END
 
   jsr movespritex
 
   ; SHIFTY START
-  lea               SIN_TABLE2(PC),a3
+  ;lea               SIN_TABLE2(PC),a3
+  lea               sinus_y(PC),a3
   move.l            d3,d0
   add.w             d0,d0
   andi.w            #%111111111,d0 ; Module of 512
@@ -537,7 +637,7 @@ colorcycle:
   subq #2,d5
   move.w 0(a5,d5.w),$DFF184
   move.w d5,BEATCOUNTER
-  
+
   ; load bitplanes in copperlist
 loadbitplanes:
   lea               BPLPTR2,a5
@@ -560,9 +660,9 @@ movespritex:
   lea                   MYSPRITE0,a3
   lea                   MYSPRITE1,a4
    ; if d0 is odd we are moving the spaceship to an odd location, in this case we must set
-   move.w d7,d0
-   lsr.w #1,d0
-   add.w #$90-8,d0
+  move.w d7,d0
+  lsr.w #1,d0
+  add.w #$90-8,d0
   btst                 #0,d0
   beq.s                .fspaceship2_no_odd_x
   bset                 #0,3(a3)
@@ -582,33 +682,20 @@ movespritex:
   addq #8,d0
   move.b               d0,1(a4)
   move.b               d0,1+1*4+11*4+1*4(a4)
-  ;subq  #8,d7
 
-
-  ;sub.w #$90-8,d7
-
-  ;move.b               d1,(a3)
-  ;move.b               d1,(a4)
-
-  ;add.w                d7,d1
-
-  ;move.b               d1,2(a0)
-  ;move.b               d1,2(a1)
   rts
 
 movespritey:
   lea                   MYSPRITE0,a3
   lea                   MYSPRITE1,a4
-  swap d7
-    ;DEBUGRAW 1111,d7
+  swap                  d7
+  move.w                d0,d7
+  lsr.w                 #7,d7
 
-  move.w d0,d7
-  lsr.w #7,d7
-
-  add.w #$80,d7
+  add.w                 #$80,d7
 
   move.b               d7,(a3)
-   move.b               d7,1*4+11*4+1*4(a3)
+  move.b               d7,1*4+11*4+1*4(a3)
   move.b               d7,(a4)
   move.b               d7,1*4+11*4+1*4(a4)
 
@@ -618,8 +705,6 @@ movespritey:
   move.b               d7,2(a4)
   move.b               d7,2+1*4+11*4+1*4(a4)
   swap d7
-  ;sub.w #11,d0
-  ;sub.w #$30,d0
 
   rts
 
@@ -921,7 +1006,7 @@ Name:                 dc.b "graphics.library",0
   ;include "vshrink.s"
   ;include "vnormal.s"
   ;include "noeffect.s"
-  include "sin.i"
+  ;include "sin.i"
 
 	include "AProcessing/libs/rasterizers/processing_bitplanes_fast.s"
   ;include "AProcessing/libs/precalc/map.s"
@@ -972,28 +1057,36 @@ COPPERLIST:
 
 SpritePointers:
 Sprite0pointers:
-  dc.w       $120,$0000,$122,$0000
+  ;dc.w       $120,$0000,$122,$0000
+  dc.w 0,0,0,0
 
 Sprite1pointers:
-  dc.w       $124,$0000,$126,$0000
+  ;dc.w       $124,$0000,$126,$0000
+  dc.w 0,0,0,0
 
 Sprite2pointers:
-  dc.w       $128,$0000,$12a,$0000
+  ;dc.w       $128,$0000,$12a,$0000
+  dc.w 0,0,0,0
 
 Sprite3pointers:
-  dc.w       $12c,$0000,$12e,$0000
+  ;dc.w       $12c,$0000,$12e,$0000
+  dc.w 0,0,0,0
 
 Sprite4pointers:
-  dc.w       $130,$0000,$132,$0000
+  ;dc.w       $130,$0000,$132,$0000
+  dc.w 0,0,0,0
 
 Sprite5pointers:
-  dc.w       $134,$0000,$136,$0000
+  ;dc.w       $134,$0000,$136,$0000
+  dc.w 0,0,0,0
 
 Sprite6pointers;
-  dc.w       $138,$0000,$13a,$0000
+  ;dc.w       $138,$0000,$13a,$0000
+  dc.w 0,0,0,0
 
 Sprite7pointers:
-  dc.w       $13c,$0000,$13e,$0000
+  ;dc.w       $13c,$0000,$13e,$0000
+  dc.w 0,0,0,0
 
 ; Bitplanes Pointers
 BPLPTR1:
