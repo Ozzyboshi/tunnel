@@ -1612,17 +1612,19 @@ COPLINES: dcb.l 4*64,0
   ;include music_ptr_linkable2.s
   ;incbin tunnel.mod
   ;include instruments/ozzyvirgil.s
-  include music/exemusic.asm
+  ;include music/exemusic.asm
+  include musicilario/exemusic.asm
 
 ;LSPBank:  incbin instruments/ozzyvirgil.lsbank
   ;dcb.b 4004,0
 
 LSPMusic:
-  incbin musiclsp123/ozzyvirgil3_micro.lsmusic
+  ;incbin musiclsp123/ozzyvirgil3_micro.lsmusic
+  incbin musicilario/demo_klang_micro.lsmusic
   even
 LSPBank:
 OZZYVIRGILHEADER: dc.l 0
-OZZYVIRGIL: dcb.b 16542,0
+OZZYVIRGIL: dcb.b 37064,0
 ;  incbin music/ozzyvirgil2.lsbank
   dc.w 0
 TXT:
