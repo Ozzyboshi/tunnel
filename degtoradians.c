@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <math.h>
+
+
 #define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
 #define BYTE_TO_BINARY(byte)  \
   ((byte) & 0x80 ? '1' : '0'), \
@@ -10,9 +12,72 @@
   ((byte) & 0x04 ? '1' : '0'), \
   ((byte) & 0x02 ? '1' : '0'), \
   ((byte) & 0x01 ? '1' : '0') 
+  
+  
+
+unsigned char convertToQ2_6(double value) {
+    unsigned char result;
+    int intpart = (int) value;
+//    printf("Integer part is %d\n",intpart);
+    double decpart = value - intpart;
+//    printf("Decimal part is %f\n",decpart);
+    
+    if (intpart==3) 	 result = 0b11000000;
+    else if (intpart==2) result = 0b10000000;
+    else if (intpart==1) result = 0b01000000;
+    else 	         result = 0b00000000;
+    
+    // start of decimal
+    double appdecpart = decpart;
+    appdecpart*=2;   
+    if (appdecpart>=1)
+    {
+        result |= 0b00100000;
+        appdecpart = appdecpart -1;
+    }
+    
+    appdecpart*=2;   
+    if (appdecpart>=1)
+    {
+        result |= 0b00010000;
+        appdecpart = appdecpart -1;
+    }
+    
+    appdecpart*=2;
+    if (appdecpart>=1)
+    {
+        result |= 0b00001000;
+        appdecpart = appdecpart -1;
+    }
+    
+    appdecpart*=2;   
+    if (appdecpart>=1)
+    {
+        result |= 0b00000100;
+        appdecpart = appdecpart -1;
+    }
+    
+    appdecpart*=2;   
+    if (appdecpart>=1)
+    {
+        result |= 0b00000010;
+        appdecpart = appdecpart -1;
+    }
+    
+    appdecpart*=2;   
+    if (appdecpart>=1)
+    {
+        result |= 0b00000001;
+        appdecpart = appdecpart -1;
+    }
+    
+    
+    
+    return result;
+}
 
 // Funzione per convertire un intero in formato Q2.6
-unsigned char convertToQ2_6(double value) {
+unsigned char convertToQ0_8(double value) {
     unsigned char result;
     int intpart = (int) value;
 //    printf("Integer part is %d\n",intpart);
@@ -25,7 +90,7 @@ unsigned char convertToQ2_6(double value) {
     else 	      */   result = 0b00000000;
     
     // start of decimal
-    double appdecpart = decpart;
+    double appdecpart = decpart*2;
     appdecpart*=2;
     if (appdecpart>=1)
     {
@@ -87,24 +152,19 @@ unsigned char convertToQ2_6(double value) {
     return result;
 }
 
+
+
 int main() {
-    // Esempio di utilizzo
-    
-    for (int x=1;x<=128;x+=2)
-    {
-//      double inputValue = 0.7854;
-      for (int y = 1; y<=128; y+=2)
-      {
-        double inputValue = atan2(y,x)/M_PI;
-        // Convertire l'intero nel formato Q2.6
-        unsigned char result = convertToQ2_6(inputValue);
-//        printf("Input is %f - Result is 0x%02X %c%c%c%c%c%c%c%c\n",inputValue,result,BYTE_TO_BINARY(result));
-        printf("dc.b %%%c%c%c%c%c%c%c%c ; X:%d Y:%d InputValue: %f\n",BYTE_TO_BINARY(result),x,y,inputValue);
-      }
+    int grado;
+    double radiante;
+
+    printf("Grado\tRadiante\n");
+    for(grado = 0; grado <= 90; grado++) {
+        radiante = grado * (M_PI / 180) / M_PI;
+        unsigned char result = convertToQ0_8(radiante);
+        printf("dc.b %%%c%c%c%c%c%c%c%c ; %d deg / %.6f\n",BYTE_TO_BINARY(result), grado, radiante);
     }
-    
-    unsigned char result = convertToQ2_6(M_PI);
-    printf("PI is %%%c%c%c%c%c%c%c%c\n",BYTE_TO_BINARY(result));
 
     return 0;
 }
+

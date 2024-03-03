@@ -125,7 +125,9 @@ POINTINCOPPERLIST MACRO
   include "AProcessing/libs/precalc/mirror_word_function.s"
   ENDC
 ATAN2_128_QUADRANT: dcb.b 4096,0
-  include "atan2_delta_table.i"
+;ATAN2_128_QUADRANT: incbin output9.bin
+  ;include "atan2_delta_table.i"
+  include "deg2raddivpi2.i"
 
   SECTION             CiriCop,CODE_C
 ;EFFECT_FUNCTION:    dc.l      BLURRYTUNNEL
@@ -389,7 +391,8 @@ sin_quadrant_4:
     lea SIN_TABLE2,a2
     lea sinus_y,a3
     DEBUG 1111
-  ENDC
+    ;ENDC
+
 
   ; ATAN2 table prepare START
   lea               ATAN2_128_QUADRANT_DELTA,a0
@@ -402,6 +405,10 @@ loop:
   move.b            d0,(a1)+
   move.w            d0,d1
   dbra              d7,loop
+  ENDC
+
+  jsr _angleops_test9
+
   ; ATAN2 table prepare END
 
   ; START preparing bitplane 0, set FF in every byte where the tunnel will be drown
@@ -655,6 +662,115 @@ exit_demo:
   bsr.w             Restore_all
   clr.l             d0
   rts
+
+_angleops_test9:
+  
+  lea ATAN2_128_QUADRANT,a0
+  moveq #64-1,d6 ; how many cycles for x?
+  move.w #1,d0
+test9loopx:  
+  
+  move.w #1,d1
+  moveq #0,d5
+
+
+  moveq #64-1,d7 ; how many cycles for y?
+test9loop;
+
+  movem.l d0/d1/d2/d4/d5/d6/d7/a0,-(sp)
+  jsr CORDIC
+  movem.l (sp)+,d0/d1/d2/d4/d5/d6/d7/a0
+  lsr.w #8,d3
+  cmp.b #$FF,d3
+  bne.s noerrore
+  moveq #0,d3
+noerrore:
+
+  MAXUWORD d5,d3
+
+  addq #2,d1
+  lea DEG2RADDIVPI2,a1
+  move.b 0(a1,d3.w),(a0)+
+  ;move.b d3,(a0)+
+  move.b d3,d5 ; save it for later comparison
+  dbra d7,test9loop
+
+  addq #2,d0
+  dbra d6,test9loopx
+  rts
+
+CORDIC:
+    ; Load angle table into a0
+    lea ANGTABLE,a0
+
+    ; init Shiftcounter , register is d6
+    moveq #0,d6
+
+    ; init SumAngle , register is d3
+    moveq #0,d3
+
+cordicloop:
+    ; check if Y is positive
+    tst.w d1
+    bmi cordicnegative
+
+    ; ********************* Y is positive ***********************
+    ; Xnew = X + Y >> Shiftcounter
+    move.w d1,d5 ; first we have to shift Y , use scratch register d5
+    asr.w d6,d5  ; Y is now shifted into d5
+    add.w d0,d5  ; Now d5 holds Xnew
+
+    ; Ynew = Y - X >> Shiftcounter
+    move.w d0,d4 ; first we have to shift Y , use scratch register d4
+    neg.w d4
+    asr.w d6,d4  ; Y is now shifted into d5
+    add.w d1,d4
+    
+    add.w (a0)+,d3 ; SumAngle += AngTable[i]
+
+    bra cordicincreaseangle
+
+
+cordicnegative:
+    ; ********************* Y is NEGATIVE ***********************
+    ; Xnew = X + Y >> Shiftcounter
+    move.w d1,d5 ; first we have to shift Y , use scratch register d5
+    asr.w d6,d5  ; Y is now shifted into d5
+    neg d5
+    add.w d0,d5  ; Now d5 holds Xnew
+
+    ; Ynew = Y - X >> Shiftcounter
+    move.w d0,d4 ; first we have to shift Y , use scratch register d4
+    asr.w d6,d4  ; Y is now shifted into d5
+    add.w d1,d4
+
+    sub.w (a0)+,d3 ; SumAngle -= AngTable[i]
+
+cordicincreaseangle:
+
+    move.w d5,d0
+    move.w d4,d1
+    beq CORDINCEND
+    tst.w (a0)
+    beq CORDINCEND
+
+    addq #1,d6 ; Increment shifting
+    
+    ; cycle over 
+    bra cordicloop
+CORDINCEND:
+    rts
+
+ANGTABLE: 
+    dc.w %0010110100000000 ; 45
+    dc.w %0001101010010000 ; 26.565
+    dc.w %0000111000001001 ; 14.036
+    dc.w %0000011100100000 ; 7.125
+    dc.w %0000001110010011 ; 3.576 
+    dc.w %0000000111001010 ; 1.790
+    dc.w %0000000011100101 ; 0.895
+    dc.w %0000000001110010 ; 0.448
+    dc.w 0
 
 movespritex:
   lea                   MYSPRITE0,a3
