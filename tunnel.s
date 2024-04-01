@@ -9,7 +9,53 @@ TEXTURE_HEIGHT equ 16
 RATIOX EQU 30
 RATIOY EQU 4
 
-LSBANK_HEADER EQU $3808625A
+LSBANK_HEADER EQU $e20e3491
+
+DEBUG MACRO
+  clr.w                  $100
+  move.w                 #$\1,d3
+  ENDM
+
+; IF_1_LESS_EQ_2_W_U - Check if a data in unsigned word format is LESS of another value
+; Input: 
+;   - first parameter.w: number to check
+;   - second paramter.w: number to check
+;   - third parameter: label to jump if condition is false
+;   - fourth parameter: size of the jump (s,w)
+; Output:
+;   - nothing
+; Trashes:
+;   Nothing
+IF_1_LESS_EQ_2_W_U MACRO
+    IFC '','\1'
+    fail missing first operand!
+    MEXIT
+    ENDC
+    IFC '','\2'
+    fail missing second operand!
+    MEXIT
+    ENDC
+    IFC '','\3'
+    fail missing label to jump
+    MEXIT
+    ENDC
+    IFNC 'w','\4'
+    IFNC 's','\4'
+    fail jump size unknown
+    MEXIT
+    ENDC
+    ENDC
+    cmp.w               \1,\2
+    bcs.\4              \3
+    ENDM
+
+SETBITPLANE MACRO
+                        IFD                         USE_DBLBUF
+                        move.l                      SCREEN_PTR_\1,\2
+                        ELSE
+                        lea                         SCREEN_\1,\2
+                        ENDC
+                        ENDM
 
 MEMCPY2 MACRO
 	move.l #\3,d7
@@ -117,38 +163,50 @@ POINTINCOPPERLIST MACRO
   ENDM
   jmp                 Inizio
 
-  include "AProcessing/libs/rasterizers/globaloptions.s"
-  include "AProcessing/libs/math/operations.s"
-  include "AProcessing/libs/math/atan2_pi_128.s"
-  IFD USE_MIRRORED_SPRITES
-  include "AProcessing/libs/precalc/mirror_word_macro.s"
-  include "AProcessing/libs/precalc/mirror_word_function.s"
-  ENDC
-ATAN2_128_QUADRANT: dcb.b 4096,0
-;ATAN2_128_QUADRANT: incbin output9.bin
-  ;include "atan2_delta_table.i"
-  include "deg2raddivpi2.i"
+MAXUWORD MACRO
+                        cmp.w                       \2,\1
+                        bcs.s                       .1\@
+                        move.w                      \1,\2
+.1\@
+    ENDM
 
-  SECTION             CiriCop,CODE_C
-;EFFECT_FUNCTION:    dc.l      BLURRYTUNNEL
+	SECTION             CiriCop,CODE_C
+; Beatcounter
+BEATCOUNTER: dc.w 48
+
+ATAN2_128_QUADRANT: dcb.b 4096,0
+
+ANGTABLE: 
+    dc.w %0010110100000000 ; 45
+    dc.w %0001101010010000 ; 26.565
+    dc.w %0000111000001001 ; 14.036
+    dc.w %0000011100100000 ; 7.125
+    dc.w %0000001110010011 ; 3.576 
+    dc.w %0000000111001010 ; 1.790
+    dc.w %0000000011100101 ; 0.895
+    dc.w %0000000001110010 ; 0.448
+    dc.w 0
 
 TRANSFORMATION_TABLE_Y:
   dcb.w SCREEN_RES_X*2*SCREEN_RES_Y*2,0
-;SIN_TABLE:          dcb.w 128*4,0
-;SIN_TABLE2:         dcb.w 128*4,0
-sinus:              dcb.w 1024,0
+
+sinus:            dcb.w 1024,0
 sinus_x:          dcb.w 128*4,0
 sinus_y:          dcb.w 128*4,0
 
-  include "musiclsp123/LightSpeedPlayer_Micro.asm"
-  include "musiclsp123/LightSpeedPlayer_cia.asm"
+COLORTABLE: dcb.w 48,0
+
+
+  include "deg2raddivpi2.i"
+  include "musicilario/LightSpeedPlayer_Micro.asm"
+  include "musicilario/LightSpeedPlayer_cia.asm"
 
 Inizio:
-  bsr.w             Save_all
+  jsr             Save_all
 
-  lea               $dff000,a6
+	lea               $dff000,a6
   move              #$7ff,$96(a6)                                                  ;Disable DMAs
-  move              #%1000001110100000,$96(a6)                                     ;Master,Copper,Blitter,Bitplanes
+  move              #%1000001110101111,$96(a6)                                     ;Master,Copper,Blitter,Bitplanes
   move              #$7fff,$9a(a6)                                                 ;Disable IRQs
   move              #$e000,$9a(a6)                                                 ;Master and lev6
 					;NO COPPER-IRQ!
@@ -263,153 +321,46 @@ colorloop:
   ; a3 = Rendering Progress Address (2 modes available... see below)
   lea               OZZYVIRGILHEADER,a0
   move.l            #LSBANK_HEADER,(a0)+
-  ;lea               SIN_TABLE(PC),a1
-  lea                sinus_x(PC),a1
-  ;lea               SIN_TABLE2(PC),a2
-  lea                sinus_y(PC),a1
+  lea               sinus_x(PC),a1
+  lea               sinus_y(PC),a2
   jsr               AK_Generate
 
-  IFD LOL
-  ; SIN first quadrant start
-  lea               SIN_Q1_7_UNSIGNED_QUADRANT_1_SOURCE,a0
-  lea               SIN_Q1_7_UNSIGNED_QUADRANT_1_DEST,a1
-  moveq             #0,d1
-  move.w            #128-1,d7
-loopsin:
-  move.w            (a0)+,d0
-  add.w             d1,d0
-  move.b            d0,(a1)+
-  move.w            d0,d1
-  dbra              d7,loopsin
-  ENDC
+  ;lea               OZZYVIRGILHEADER,a0
+  ;DEBUG 1111
+  ;lea LSPBank2,a1
+  ;move.w #8004-1,d7
+  ;moveq #0,d0
+;testloop:
+;  cmp.b (a0)+,(a1)+
+;  beq.s testok
+;    DEBUG 1112
+;testok:
+ ;     addq #1,d0
 
-  ; CREATE SIN table
+  ;dbra d7,testloop
+  ;DEBUG 1113
+
+	; CREATE SIN table
   PROTON_SINUS
 
-  lea sinus,a0
-  lea sinus_x,a1
-  lea sinus_y,a2
-  move.w #1024/2-1,d7
+  lea 				sinus,a0
+  lea 				sinus_x,a1
+  lea 				sinus_y,a2
+  move.w 			#1024/2-1,d7
 partire:
-  move.w (a0),d0
-  addq #4,a0
-  asr.w #2,d0
-  move.w d0,d1
+  move.w 			(a0),d0
+  addq 				#4,a0
+  asr.w 			#2,d0
+  move.w 			d0,d1
   asr.w             #1,d1
   asl.w             #8,d1
 
-  bclr #0,d0
-  move.w d0,(a1)+
-  move.w d1,(a2)+
-  dbra d7,partire
+  bclr 				#0,d0
+  move.w 			d0,(a1)+
+  move.w 			d1,(a2)+
+  dbra 				d7,partire
 
-
-
-  IFD LOL
-  ; SIN table prepare START
-  lea               SIN_Q1_7_UNSIGNED_QUADRANT_1_DEST,a0
-  lea               SIN_TABLE(PC),a1
-  lea               SIN_TABLE2(PC),a2
-
-  ; quadrant 1 - start
-  moveq             #128-1,d7
-  moveq             #0,d0
-sin_quadrant_1:
-  moveq             #0,d0
-  move.b            (a0)+,d0
-  asr.w             #1,d0
-  move.w            d0,d1
-  bclr              #0,d1
-  move.w            d1,(a1)+
-  asr.w             #1,d0
-  asl.w             #8,d0
-  move.w            d0,(a2)+
-  dbra              d7,sin_quadrant_1
-  ; quadrant 1 - end
-
-  ; quadrant 2 - start
-  move.w            #$0040,(a1)+; here d1 holds pi/2
-  move.w            #$2000,(a2)+; here d1 holds pi/2
-  moveq             #127-1,d7
-sin_quadrant_2:
-  moveq             #0,d0
-  move.b            -(a0),d0
-  asr.w             #1,d0
-  move.w            d0,d1
-  bclr              #0,d1
-  move.w            d1,(a1)+
-  asr.w             #1,d0
-  asl.w             #8,d0
-  move.w            d0,(a2)+
-  dbra              d7,sin_quadrant_2
-  ; quadrant 2 - end
-
-  ;MEMCPY2 SIN_TABLE,SIN_TABLE+128*2,512/2
-  ;MEMCPY2 SIN_TABLE2,SIN_TABLE2+128*2,512/2
-
-  ; quadrant 3 - start
-  lea               SIN_Q1_7_UNSIGNED_QUADRANT_1_DEST,a0
-  moveq             #128-1,d7
-sin_quadrant_3:
-  moveq             #0,d0
-  move.b            (a0)+,d0
-  neg.w             d0
-  asr.w             #1,d0
-  move.w            d0,d1
-  bclr              #0,d1
-  move.w            d1,(a1)+
-  asr.w             #1,d0
-  asl.w             #8,d0
-  move.w            d0,(a2)+
-  dbra              d7,sin_quadrant_3
-  ; quadrant 3 - end
-
-  ; quadrant 4 - start
-  move.w            #$FFC0,(a1)+; here d1 holds pi/2
-  move.w            #$E000,(a2)+; here d1 holds pi/2
-  moveq             #127-1,d7
-sin_quadrant_4:
-  moveq             #0,d0
-  move.b            -(a0),d0
-  neg.w             d0
-  asr.w             #1,d0
-  move.w            d0,d1
-  bclr              #0,d1
-  move.w            d1,(a1)+
-  asr.w             #1,d0
-  asl.w             #8,d0
-  move.w            d0,(a2)+
-  dbra              d7,sin_quadrant_4
-  ; quadrant 4 - end
-  ENDC
-
-  ; SIN table prepare END
-
-  IFD LOL  
-    lea SIN_TABLE,a0
-    lea sinus_x,a1
-    lea SIN_TABLE2,a2
-    lea sinus_y,a3
-    DEBUG 1111
-    ;ENDC
-
-
-  ; ATAN2 table prepare START
-  lea               ATAN2_128_QUADRANT_DELTA,a0
-  lea               ATAN2_128_QUADRANT,a1
-  moveq             #0,d1
-  move.w            #4096-1,d7
-loop:
-  move.w            (a0)+,d0
-  add.w             d1,d0
-  move.b            d0,(a1)+
-  move.w            d0,d1
-  dbra              d7,loop
-  ENDC
-
-  jsr _angleops_test9
-
-  ; ATAN2 table prepare END
+  jsr 				_angleops_test9
 
   ; START preparing bitplane 0, set FF in every byte where the tunnel will be drown
   SETBITPLANE       0,a6
@@ -437,24 +388,7 @@ tunnel_x_prepare:
   move.l            SCREEN_PTR_0,d5
   POINTINCOPPERLIST
 
-  IFD USE_MIRRORED_SPRITES
-    ; create right part of the spaceship sprite
-    lea MYSPRITE0+4,a0
-    lea MYSPRITE1+4,a1
-    lea MYSPRITE00+4,a2
-    lea MYSPRITE01+4,a3
-    moveq #22-1,d5
-ciao:
-    move.w (a0)+,d0
-    jsr MIRROR_WORD_F
-    move.w d1,(a1)+
-    move.w (a2)+,d0
-    jsr MIRROR_WORD_F
-    move.w d1,(a3)+
-    dbra d5,ciao
-    ENDC
-
-    ; init sprites
+  ; init sprites
   ; Sprite 0 init
   MOVE.L            #MYSPRITE0,d5
   LEA               SpritePointers,a5
@@ -475,10 +409,10 @@ ciao:
   LEA               SpritePointers+24,a5
   POINTINCOPPERLIST
 
-  bsr.w             GENERATE_TRANSFORMATION_TABLE_Y
+  jsr             GENERATE_TRANSFORMATION_TABLE_Y
 
   ; Generate transformation table for distance
-  bsr.w             GENERATE_TRANSFORMATION_TABLE_X
+  jsr             GENERATE_TRANSFORMATION_TABLE_X
 
   ; Set colors
   move.w            #$F,$dff180
@@ -490,13 +424,6 @@ ciao:
 
   ; Generate XOR texture (16px X 16px)
   jsr               XOR_TEXTURE
-
-  ;Init LSP and start replay using easy CIA toolbox
-	lea		            LSPMusic,a0
-	lea		            LSPBank,a1
-	suba.l	          a2,a2			; suppose VBR=0 ( A500 )
-	moveq	            #0,d0			; suppose PAL machine
-	bsr.w		          LSP_MusicDriver_CIA_Start
 
   ; Write text
   lea TXT,a0
@@ -535,30 +462,47 @@ validletter:
   bra.s nextletter
 txtend:
 
+	;code
+		
+			;move.w	#(1<<5)|(1<<6)|(1<<7)|(1<<8),$dff096
+
+			;bsr		clearSprites
+
+			move.w	#$0,$dff1fc
+			;move.w	#$200,$dff100	; 0 bitplan
+			;move.w	#$04f,$dff180
+	
+		; Init LSP and start replay using easy CIA toolbox
+			lea		LSPMusic,a0
+			lea		OZZYVIRGILHEADER,a1
+			;lea LSPBank2,a1
+      suba.l	a2,a2			; suppose VBR=0 ( A500 )
+			moveq	#0,d0			; suppose PAL machine
+			bsr		LSP_MusicDriver_CIA_Start
+
+			move.w	#$e000,$dff09a
+
   moveq             #0,d3 ; reset current time variable
   move.l            #40*256*2*-1,d6
 
-  lea               TEXTURE_DATA(PC),a2
-  lea               TEXTURE_DATA_2(PC),a6
-  lea               TEXTURE_DATA_3(PC),a1
-  lea               TEXTURE_DATA_4(PC),a0
+  lea               TEXTURE_DATA,a2
+  lea               TEXTURE_DATA_2,a6
+  lea               TEXTURE_DATA_3,a1
+  lea               TEXTURE_DATA_4,a0
+  
+		
+		
 
-; ******************************* START OF GAME LOOP ****************************
+			; ******************************* START OF GAME LOOP ****************************
 mouse:
   cmpi.b            #$ff,$dff006                                                   ; Are we at line 255?
-  bne.s             mouse                                                          ; Wait
+  bne.s             mouse    
 
   ; Switch Bitplanes for double buffering
   neg.l             d6
   add.l             d6,SCREEN_PTR_1
   SETBITPLANE       1,a5
   addq              #4,a5
-
-  IFD COLORDEBUG
-  move.w #$FF0,$dff180
-  ENDC
-
-  ;bra.w     tunnelend
 
   ; *********************************** Start of tunnel rendering *********************************
 
@@ -587,7 +531,7 @@ mouse:
   add.w             d0,d7
   ; SHIFTY END
 
-  lea               64+32*256+TRANSFORMATION_TABLE_DISTANCE(PC),a3
+  lea               64+32*256+TRANSFORMATION_TABLE_DISTANCE,a3
   adda.w            d7,a3
   lea	              64+32*256+TRANSFORMATION_TABLE_Y(PC),a4
   adda.w            d7,a4
@@ -607,9 +551,7 @@ mouse:
   ori.l             #$FF0000,d7
 tunnel_y:
 
-; x cycle start
-  ;moveq             #SCREEN_RES_X/4-1,d6
-;tunnel_x:
+
   swap d7
   rept 16
   PRINT_PIXELS
@@ -631,10 +573,10 @@ tunnelend:
   ENDC
 
   lea COLORTABLE(PC),a5
-
-  btst #3,Lsp_Beat+1
+  ;btst #3,Lsp_Beat+1
+  btst #4,d3
   beq.s colorcycle
-  bclr #3,Lsp_Beat+1
+  ;bclr #3,Lsp_Beat+1
   move.w #48,BEATCOUNTER
   move.w 48(a5),$DFF184
   bra.s loadbitplanes
@@ -659,118 +601,48 @@ loadbitplanes:
   bne.w             mouse
 exit_demo:
   bsr.w             LSP_MusicDriver_CIA_Stop
-  bsr.w             Restore_all
+  jsr             Restore_all
   clr.l             d0
   rts
 
-_angleops_test9:
-  
-  lea ATAN2_128_QUADRANT,a0
-  moveq #64-1,d6 ; how many cycles for x?
-  move.w #1,d0
-test9loopx:  
-  
-  move.w #1,d1
-  moveq #0,d5
+;mainLoop:	bra.s	mainLoop
 
+		
+clearSprites:
+			lea		$dff140,a0
+			moveq	#8-1,d0			; 8 sprites to clear
+			moveq	#0,d1
+.clspr:		move.l	d1,(a0)+
+			move.l	d1,(a0)+
+			dbf		d0,.clspr
+			rts
 
-  moveq #64-1,d7 ; how many cycles for y?
-test9loop;
+		data_c
 
-  movem.l d0/d1/d2/d4/d5/d6/d7/a0,-(sp)
-  jsr CORDIC
-  movem.l (sp)+,d0/d1/d2/d4/d5/d6/d7/a0
-  lsr.w #8,d3
-  cmp.b #$FF,d3
-  bne.s noerrore
-  moveq #0,d3
-noerrore:
+		data
 
-  MAXUWORD d5,d3
+LSPMusic:	incbin	"musicilario/demo_klang_pt_5_2_micro.lsmusic"
+			even
 
-  addq #2,d1
-  lea DEG2RADDIVPI2,a1
-  move.b 0(a1,d3.w),(a0)+
-  ;move.b d3,(a0)+
-  move.b d3,d5 ; save it for later comparison
-  dbra d7,test9loop
+;---------------------------------------------------------------
+Save_all:
+  move.b            #$87,$bfd100                                                   ; stop drive
+  move.l            $00000004,a6
+  jsr               -132(a6)
+  move.l            $6c,SaveIRQ
+  move.w            $dff01c,Saveint
+  or.w              #$c000,Saveint
+  move.w            $dff002,SaveDMA
+  or.w              #$8100,SaveDMA
 
-  addq #2,d0
-  dbra d6,test9loopx
+  move.l	          4.w,a6		; ExecBase in A6
+  JSR	              -$84(a6)	; FORBID - Disabilita il Multitasking
+  JSR	              -$78(A6)	; DISABLE - Disabilita anche gli interrupt
+				;	    del sistema operativo
+  ; set new intena
+  MOVE.L	          #$7FFF7FFF,$dff09A	; DISABILITA GLI INTERRUPTS & INTREQS
+
   rts
-
-CORDIC:
-    ; Load angle table into a0
-    lea ANGTABLE,a0
-
-    ; init Shiftcounter , register is d6
-    moveq #0,d6
-
-    ; init SumAngle , register is d3
-    moveq #0,d3
-
-cordicloop:
-    ; check if Y is positive
-    tst.w d1
-    bmi cordicnegative
-
-    ; ********************* Y is positive ***********************
-    ; Xnew = X + Y >> Shiftcounter
-    move.w d1,d5 ; first we have to shift Y , use scratch register d5
-    asr.w d6,d5  ; Y is now shifted into d5
-    add.w d0,d5  ; Now d5 holds Xnew
-
-    ; Ynew = Y - X >> Shiftcounter
-    move.w d0,d4 ; first we have to shift Y , use scratch register d4
-    neg.w d4
-    asr.w d6,d4  ; Y is now shifted into d5
-    add.w d1,d4
-    
-    add.w (a0)+,d3 ; SumAngle += AngTable[i]
-
-    bra cordicincreaseangle
-
-
-cordicnegative:
-    ; ********************* Y is NEGATIVE ***********************
-    ; Xnew = X + Y >> Shiftcounter
-    move.w d1,d5 ; first we have to shift Y , use scratch register d5
-    asr.w d6,d5  ; Y is now shifted into d5
-    neg d5
-    add.w d0,d5  ; Now d5 holds Xnew
-
-    ; Ynew = Y - X >> Shiftcounter
-    move.w d0,d4 ; first we have to shift Y , use scratch register d4
-    asr.w d6,d4  ; Y is now shifted into d5
-    add.w d1,d4
-
-    sub.w (a0)+,d3 ; SumAngle -= AngTable[i]
-
-cordicincreaseangle:
-
-    move.w d5,d0
-    move.w d4,d1
-    beq CORDINCEND
-    tst.w (a0)
-    beq CORDINCEND
-
-    addq #1,d6 ; Increment shifting
-    
-    ; cycle over 
-    bra cordicloop
-CORDINCEND:
-    rts
-
-ANGTABLE: 
-    dc.w %0010110100000000 ; 45
-    dc.w %0001101010010000 ; 26.565
-    dc.w %0000111000001001 ; 14.036
-    dc.w %0000011100100000 ; 7.125
-    dc.w %0000001110010011 ; 3.576 
-    dc.w %0000000111001010 ; 1.790
-    dc.w %0000000011100101 ; 0.895
-    dc.w %0000000001110010 ; 0.448
-    dc.w 0
 
 movespritex:
   lea                   MYSPRITE0,a3
@@ -824,38 +696,6 @@ movespritey:
 
   rts
 
-; Beatcounter
-BEATCOUNTER: dc.w 48
-
-; Color table
-COLORTABLE: dcb.w 48,0
-  ;dc.w $101 ; 0
-  ;dc.w $202 ; 1
-  ;dc.w $303 ; 2
-  ;dc.w $404 ; 4
-  ;dc.w $505 ; 5
-  ;dc.w $505 ; 6
-  ;dc.w $606 ; 7
-  ;dc.w $606 ; 8
-  ;dc.w $707 ; 9
-  ;dc.w $707 ; 10
-  ;dc.w $808 ; 11
-  ;dc.w $808 ; 12
-  ;dc.w $909 ; 0
-  ;dc.w $909 ; 1
-  ;dc.w $A0A ; 2
-  ;dc.w $A0A ; 3
-  ;dc.w $B0B ; 4
-  ;dc.w $B0B ; 5
-  ;dc.w $C0C ; 6
-  ;dc.w $C0C ; 7
-  ;dc.w $D0D ; 8
-  ;dc.w $D0D ; 9
-  ;dc.w $E0E ; 10
-  ;dc.w $E0E ; 11
-  ;dc.w $F0F ; 12
-  ;dc.w $F0F ; 12
-
 ; Routine to generate a XOR texture
 XOR_TEXTURE:
   ;for(int y = 0; y < texHeight; y++)
@@ -902,23 +742,6 @@ xor_texture_x:
   dbra              d7,xor_texture_y
   rts
 
-; Routine GENERATE_TRANSFORMATION_TABLE
-; This routine generates the precalculated table used for the X axis
-; It's just a translation for this C code:
-; void generateTransformationTable() {
-;   int x, y;
-;   for (y = 0; y < height; y++) {
-;       for (int x = 0; x < width; x++) {
-;           // Calcola la distanza
-;           double distance = sqrt((x - width / 2.0) * (x - width / 2.0) + (y - height / 2.0) * (y - height / 2.0));
-;           int inverse_distance = (int) (RATIOX * texHeight / distance);
-;           int inverse_distance_modded = inverse_distance % texHeight;
-;           printf ("X:%d - Y:%d : %f %d %d\n",x,y,distance,inverse_distance,inverse_distance_modded);
-;       }
-;   }
-; }
-; Resulting table will be stored att addr TRANSFORMATION_TABLE_DISTANCE
-;
 
 GENERATE_TRANSFORMATION_TABLE_X:
   lea               TRANSFORMATION_TABLE_DISTANCE(PC),a0
@@ -1063,25 +886,105 @@ table_y_precalc_x:
   dbra             d7,table_y_precalc_y
   rts
 
-;---------------------------------------------------------------
-Save_all:
-  move.b            #$87,$bfd100                                                   ; stop drive
-  move.l            $00000004,a6
-  jsr               -132(a6)
-  move.l            $6c,SaveIRQ
-  move.w            $dff01c,Saveint
-  or.w              #$c000,Saveint
-  move.w            $dff002,SaveDMA
-  or.w              #$8100,SaveDMA
 
-  move.l	          4.w,a6		; ExecBase in A6
-  JSR	              -$84(a6)	; FORBID - Disabilita il Multitasking
-  JSR	              -$78(A6)	; DISABLE - Disabilita anche gli interrupt
-				;	    del sistema operativo
-  ; set new intena
-  MOVE.L	          #$7FFF7FFF,$dff09A	; DISABILITA GLI INTERRUPTS & INTREQS
+_angleops_test9:
+  
+  lea ATAN2_128_QUADRANT,a0
+  moveq #64-1,d6 ; how many cycles for x?
+  move.w #1,d0
+test9loopx:  
+  
+  move.w #1,d1
+  moveq #0,d5
 
+
+  moveq #64-1,d7 ; how many cycles for y?
+test9loop;
+
+  movem.l d0/d1/d2/d4/d5/d6/d7/a0,-(sp)
+  jsr CORDIC
+  movem.l (sp)+,d0/d1/d2/d4/d5/d6/d7/a0
+  lsr.w #8,d3
+  cmp.b #$FF,d3
+  bne.s noerrore
+  moveq #0,d3
+noerrore:
+
+  MAXUWORD d5,d3
+
+  addq #2,d1
+  lea DEG2RADDIVPI2,a1
+  move.b 0(a1,d3.w),(a0)+
+  ;move.b d3,(a0)+
+  move.b d3,d5 ; save it for later comparison
+  dbra d7,test9loop
+
+  addq #2,d0
+  dbra d6,test9loopx
   rts
+
+CORDIC:
+    ; Load angle table into a0
+    lea ANGTABLE,a0
+
+    ; init Shiftcounter , register is d6
+    moveq #0,d6
+
+    ; init SumAngle , register is d3
+    moveq #0,d3
+
+cordicloop:
+    ; check if Y is positive
+    tst.w d1
+    bmi cordicnegative
+
+    ; ********************* Y is positive ***********************
+    ; Xnew = X + Y >> Shiftcounter
+    move.w d1,d5 ; first we have to shift Y , use scratch register d5
+    asr.w d6,d5  ; Y is now shifted into d5
+    add.w d0,d5  ; Now d5 holds Xnew
+
+    ; Ynew = Y - X >> Shiftcounter
+    move.w d0,d4 ; first we have to shift Y , use scratch register d4
+    neg.w d4
+    asr.w d6,d4  ; Y is now shifted into d5
+    add.w d1,d4
+    
+    add.w (a0)+,d3 ; SumAngle += AngTable[i]
+
+    bra cordicincreaseangle
+
+
+cordicnegative:
+    ; ********************* Y is NEGATIVE ***********************
+    ; Xnew = X + Y >> Shiftcounter
+    move.w d1,d5 ; first we have to shift Y , use scratch register d5
+    asr.w d6,d5  ; Y is now shifted into d5
+    neg d5
+    add.w d0,d5  ; Now d5 holds Xnew
+
+    ; Ynew = Y - X >> Shiftcounter
+    move.w d0,d4 ; first we have to shift Y , use scratch register d4
+    asr.w d6,d4  ; Y is now shifted into d5
+    add.w d1,d4
+
+    sub.w (a0)+,d3 ; SumAngle -= AngTable[i]
+
+cordicincreaseangle:
+
+    move.w d5,d0
+    move.w d4,d1
+    beq CORDINCEND
+    tst.w (a0)
+    beq CORDINCEND
+
+    addq #1,d6 ; Increment shifting
+    
+    ; cycle over 
+    bra cordicloop
+CORDINCEND:
+    rts
+
 Restore_all:
   move.l            SaveIRQ,$6c
   move.w            #$7fff,$dff09a
@@ -1117,15 +1020,8 @@ SaveIRQ:              dc.l 0
 Name:                 dc.b "graphics.library",0
   even
 
-  ;include "blurryeffect.s"
-  ;include "normaleffect.s"
-  ;include "vshrink.s"
-  ;include "vnormal.s"
-  ;include "noeffect.s"
-  ;include "sin.i"
-
 	include "AProcessing/libs/rasterizers/processing_bitplanes_fast.s"
-  ;include "AProcessing/libs/precalc/map.s"
+	include "AProcessing/libs/math/atan2_pi_128.s"
 
 ;----------------------------------------------------------------
 
@@ -1150,10 +1046,6 @@ COPPERLIST:
   dc.w       $94,$00d0                                                 ; DdfStop
   dc.w       $102,0
 
-  ;dc.w	$0180,$000	; color0 - SFONDO
-	;dc.w	$0182,$f00	; color1 - SCRITTE
-	;dc.w	$0184,$0f0	; color2 - SCRITTE
-	;dc.w	$0186,$00f	; color3 - SCRITTE
   dc.w       $104,$0064
 
   dc.w       $108,0                                                    ; Bpl1Mod
@@ -1173,11 +1065,9 @@ COPPERLIST:
 
 SpritePointers:
 Sprite0pointers:
-  ;dc.w       $120,$0000,$122,$0000
   dc.w 0,0,0,0
 
 Sprite1pointers:
-  ;dc.w       $124,$0000,$126,$0000
   dc.w 0,0,0,0
 
 Sprite2pointers:
@@ -1185,564 +1075,38 @@ Sprite2pointers:
   dc.w 0,0,0,0
 
 Sprite3pointers:
-  ;dc.w       $12c,$0000,$12e,$0000
   dc.w 0,0,0,0
 
 Sprite4pointers:
-  ;dc.w       $130,$0000,$132,$0000
   dc.w 0,0,0,0
 
 Sprite5pointers:
-  ;dc.w       $134,$0000,$136,$0000
   dc.w 0,0,0,0
 
 Sprite6pointers;
-  ;dc.w       $138,$0000,$13a,$0000
   dc.w 0,0,0,0
 
 Sprite7pointers:
-  ;dc.w       $13c,$0000,$13e,$0000
   dc.w 0,0,0,0
 
 ; Bitplanes Pointers
 BPLPTR1:
-;  dc.w       $e0,$0000,$e2,$0000                                       ;first	 bitplane - BPL0PT
   dc.l 0,0
 BPLPTR2:
-;  dc.w       $e4,$0000,$e6,$0000                                       ;second bitplane - BPL1PT
   dc.l 0,0
 
 COPLINES: dcb.l 4*64,0
-  IFD   LOL
-  ; line 1
-  dc.w       $2bE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $2dE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-  ; line 2
-  dc.w       $2eE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $30E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-  ; line 3
-  dc.w       $31E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $33E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-  ; line 4
-  dc.w       $34E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $36E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-  ; line 5
-  dc.w       $37E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $39E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-    ; line 6
-  dc.w       $3AE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $3CE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-    ; line 7
-  dc.w       $3DE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $3FE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-    ; line 8
-  dc.w       $40E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $42E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-    ; line 9
-  dc.w       $43E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $45E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-    ; line 10
-  dc.w       $46E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $48E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-      ; line 11
-  dc.w       $49E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $4BE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-      ; line 12
-  dc.w       $4CE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $4EE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-      ; line 14
-  dc.w       $4FE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $51E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-      ; line 15
-  dc.w       $52E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $54E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-     ; line 16
-  dc.w       $55E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $57E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-     ; line 17
-  dc.w       $58E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $5AE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-     ; line 18
-  dc.w       $5BE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $5DE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-     ; line 19
-  dc.w       $5EE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $60E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-     ; line 20
-  dc.w       $61E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $63E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-     ; line 21
-  dc.w       $64E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $66E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-     ; line 22
-  dc.w       $67E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $69E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-     ; line 23
-  dc.w       $6AE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $6CE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-     ; line 24
-  dc.w       $6DE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $6FE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-     ; line 25
-  dc.w       $70E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $72E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-       ; line 26
-  dc.w       $73E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $75E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-         ; line 27
-  dc.w       $76E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $78E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-         ; line 28
-  dc.w       $79E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $7BE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-         ; line 29
-  dc.w       $7CE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $7EE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-         ; line 30
-  dc.w       $7FE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $81E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-           ; line 31
-  dc.w       $82E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $84E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-           ; line 32
-  dc.w       $85E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $87E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-           ; line 33
-  dc.w       $88E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $8AE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-           ; line 34
-  dc.w       $8BE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $8EE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-           ; line 35
-  dc.w       $8FE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $91E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-             ; line 36
-  dc.w       $92E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $94E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-             ; line 37
-  dc.w       $95E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $97E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-               ; line 38
-  dc.w       $98E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $9AE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-               ; line 39
-  dc.w       $9BE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $9DE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-               ; line 40
-  dc.w       $9EE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $A0E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                 ; line 41
-  dc.w       $A1E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $A3E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                  ; line 42
-  dc.w       $A4E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $A6E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                    ; line 43
-  dc.w       $A7E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $A9E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                     ; line 44
-  dc.w       $AAE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $ACE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                       ; line 45
-  dc.w       $ADE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $AFE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                         ; line 46
-  dc.w       $B0E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $B2E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                           ; line 47
-  dc.w       $B3E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $B5E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                           ; line 48
-  dc.w       $B6E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $B8E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                           ; line 49
-  dc.w       $B9E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $BBE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                           ; line 50
-  dc.w       $BCE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $BEE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                             ; line 51
-  dc.w       $BFE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $C1E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                             ; line 52
-  dc.w       $C2E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $C4E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                             ; line 53
-  dc.w       $C5E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $C7E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                             ; line 54
-  dc.w       $C8E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $CAE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                             ; line 55
-  dc.w       $CBE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $CEE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                               ; line 56
-  dc.w       $CFE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $D1E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                               ; line 57
-  dc.w       $D2E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $D4E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                               ; line 58
-  dc.w       $D5E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $D7E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                               ; line 59
-  dc.w       $D8E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $DAE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                               ; line 60
-  dc.w       $DBE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $DEE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                               ; line 61
-  dc.w       $DFE3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $E1E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                               ; line 62
-  dc.w       $E2E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $E4E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                               ; line 63
-  dc.w       $E5E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $E7E3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-                               ; line 64
-  dc.w       $E8E3,$FFFE
-  ;dc.w       $180,$fff
-  dc.w       $10a,-40
-  dc.w       $EAE3,$FFFE
-  ;dc.w       $180,0
-  dc.w       $10a,0
-
-  ENDC
+  
 
   ; Copperlist end
   dc.w       $FFFF,$FFFE                                               ; End of copperlist
 
-  ;include P6112-options.i
-  ;include P6112-Play.i
-  ;include music_ptr_linkable2.s
-  ;incbin tunnel.mod
-  ;include instruments/ozzyvirgil.s
-  ;include music/exemusic.asm
-  include musicilario/exemusic.asm
+  include "musicilario/compact/exemusic.asm"
 
-;LSPBank:  incbin instruments/ozzyvirgil.lsbank
-  ;dcb.b 4004,0
-
-LSPMusic:
-  ;incbin musiclsp123/ozzyvirgil3_micro.lsmusic
-  incbin musicilario/demo_klang_micro.lsmusic
-  even
 LSPBank:
 OZZYVIRGILHEADER: dc.l 0
-OZZYVIRGIL: dcb.b 37064,0
-;  incbin music/ozzyvirgil2.lsbank
-  dc.w 0
+OZZYVIRGIL: dcb.b 32004,0
+  dc.w 0,0
 TXT:
   dc.b "FOLLOW[PHAZE[101",$FF,"THE[GREAT[RETROPROGRAMMING[COMMUNITY",$FF,"FOR[THE[C64[AND[THE[AMIGA",0
 FONTS:
