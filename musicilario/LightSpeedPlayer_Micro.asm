@@ -90,7 +90,7 @@ LSP_MusicPlayTickMicro:
 			moveq	#0,d6
 			lea		m_resetv(a2),a3
 			lea		16*4(a6),a6
-			
+
 .vLoop:		lea		-16(a6),a6
 			move.l	(a1),a0
 			move.b	(a0)+,d0		; cmd for current voice
@@ -111,10 +111,10 @@ LSP_MusicPlayTickMicro:
 			moveq	#0,d1
 			move.b	(a0)+,d1
 			move.l	a0,4*4*3-4(a1)
-			
+
 		; prepare instrument
 			mulu.w	#12,d1
-		
+
 			move.l	m_lspInstruments(a2),a0
 			add.w	d1,a0
 			bset	d7,d6
@@ -122,6 +122,7 @@ LSP_MusicPlayTickMicro:
 			move.w	(a0)+,4(a6)
 			move.l	(a0)+,(a3)+
 			move.w	(a0)+,(a3)+
+			bset    d7,Lsp_Beat+1 ; added by Ozzyboshi to mark which channel has been played
 
 .noInstr:
 			dbf		d7,.vLoop
@@ -133,7 +134,7 @@ LSP_MusicPlayTickMicro:
 
 			add.b	d0,d0
 			bcc.s	.noLoopCmd
-			
+
 		; backup or restore current song position
 			lea		m_streams(a2),a0
 			lea		m_loopStreams(a2),a1
@@ -159,3 +160,4 @@ m_resetv:			rs.b	4*6
 sizeof_LSPVars:		rs.w	0
 
 LSPMicroVars:		ds.b	sizeof_LSPVars
+Lsp_Beat: 			dc.w 	1

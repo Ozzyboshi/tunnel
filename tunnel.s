@@ -171,8 +171,19 @@ MAXUWORD MACRO
     ENDM
 
 	SECTION             CiriCop,CODE_C
-; Beatcounter
-BEATCOUNTER: dc.w 48
+
+BEAT_LIMIT    EQU  29
+BEAT_TIMER:   dc.w 48
+BEAT_COUNTER: dc.w 0
+TUNNEL_MIN_VELOCITY EQU 1
+TUNNEL_VELOCITY: dc.w TUNNEL_MIN_VELOCITY
+
+TEXTURE_POINTER: dc.l TEXTURE_LIST
+TEXTURE_LIST: dc.l CHECKERS
+              dc.l X2
+              dc.l X
+              dc.l SQUARE
+              dc.l 0
 
 ATAN2_128_QUADRANT: dcb.b 4096,0
 
@@ -423,7 +434,35 @@ tunnel_x_prepare:
   ; set modulo
 
   ; Generate XOR texture (16px X 16px)
-  jsr               XOR_TEXTURE
+  ;jsr               XOR_TEXTURE
+
+  ;lea               TEXTURE_DATA_2,a3
+  ;DEBUG 1233
+
+  lea               CHECKERS,a0
+  lea               TEXTURE_DATA,a1 ;; byte
+  lea               TEXTURE_DATA_2,a4
+  lea               TEXTURE_DATA_3,a3 ;;byte
+  lea               TEXTURE_DATA_4,a2
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+
+  ;lea               TEXTURE_DATA_2,a3
+  ;DEBUG 1234
 
   ; Write text
   lea TXT,a0
@@ -489,14 +528,11 @@ txtend:
   lea               TEXTURE_DATA_2,a6
   lea               TEXTURE_DATA_3,a1
   lea               TEXTURE_DATA_4,a0
-  
-		
-		
 
 			; ******************************* START OF GAME LOOP ****************************
 mouse:
   cmpi.b            #$ff,$dff006                                                   ; Are we at line 255?
-  bne.s             mouse    
+  bne.s             mouse
 
   ; Switch Bitplanes for double buffering
   neg.l             d6
@@ -512,22 +548,20 @@ mouse:
   move.l            d3,d7
   andi.w            #%111111111,d7 ; Module of 512
   add.w             d7,d7
-  ;lea               SIN_TABLE(PC),a3
   lea               sinus_x(PC),a3
   move.w            0(a3,d7.w),d7
   ; SHIFTX END
 
-  jsr movespritex
+  jsr               movespritex
 
   ; SHIFTY START
-  ;lea               SIN_TABLE2(PC),a3
   lea               sinus_y(PC),a3
   move.l            d3,d0
   add.w             d0,d0
   andi.w            #%111111111,d0 ; Module of 512
   add.w             d0,d0
   move.w            0(a3,d0.w),d0
-  jsr movespritey
+  jsr               movespritey
   add.w             d0,d7
   ; SHIFTY END
 
@@ -572,20 +606,24 @@ tunnelend:
   move.w            #$000,$dff180
   ENDC
 
-  lea COLORTABLE(PC),a5
-  ;btst #3,Lsp_Beat+1
-  btst #4,d3
-  beq.s colorcycle
-  ;bclr #3,Lsp_Beat+1
-  move.w #48,BEATCOUNTER
-  move.w 48(a5),$DFF184
-  bra.s loadbitplanes
+  lea               COLORTABLE(PC),a5
+  btst              #0,Lsp_Beat+1
+  beq.s             colorcycle
+  addq              #1,BEAT_COUNTER
+  bclr              #0,Lsp_Beat+1
+  move.w            #48,BEAT_TIMER
+  move.w            48(a5),$DFF184
+  IF_1_LESS_EQ_2_W_U #20,BEAT_COUNTER,noaddvelocity,s
+  addq              #1,TUNNEL_VELOCITY
+noaddvelocity:
+  bra.s             loadbitplanes
 
 colorcycle:
-  move.w BEATCOUNTER,d5
-  subq #2,d5
-  move.w 0(a5,d5.w),$DFF184
-  move.w d5,BEATCOUNTER
+  move.w            BEAT_TIMER,d5
+  subq              #2,d5
+  beq.s             loadbitplanes
+  move.w            0(a5,d5.w),$DFF184
+  move.w            d5,BEAT_TIMER
 
   ; load bitplanes in copperlist
 loadbitplanes:
@@ -593,8 +631,49 @@ loadbitplanes:
   move.l            SCREEN_PTR_1,d5
   POINTINCOPPERLIST
 
+  ; if BEAT_COUNTER reaches 20 then do something
+  cmpi.w            #BEAT_LIMIT,BEAT_COUNTER
+  bne.w             nochangeeffect
+  movem.l           d0-d7/a0-a6,-(sp)
+  move.l            TEXTURE_POINTER,a0
+  addq              #4,a0
+  move.l            a0,TEXTURE_POINTER
+  tst.l             (a0)
+  bne.s             txtnoreset
+  move.l            #TEXTURE_LIST,TEXTURE_POINTER
+  move.l            TEXTURE_POINTER,a0
+txtnoreset:
+  move.l            (a0),a0
+  ;lea               SQUARE,a0
+  lea               TEXTURE_DATA,a1 ;; byte
+  lea               TEXTURE_DATA_2,a4
+  lea               TEXTURE_DATA_3,a3 ;;byte
+  lea               TEXTURE_DATA_4,a2
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  jsr               CONVERT2TEXTURE
+  movem.l           (sp)+,d0-d7/a0-a6
+  move.w            #1,BEAT_COUNTER
+  move.w             #TUNNEL_MIN_VELOCITY,TUNNEL_VELOCITY ; reset tunnel velocity
+
+nochangeeffect
+
   ; increment the frame counter for animating
-  addq              #1,d3
+  ;addq              #1,d3
+  add.w TUNNEL_VELOCITY,d3
 
   ; exit if lmb is pressed
   btst              #6,$bfe001
@@ -621,7 +700,7 @@ clearSprites:
 
 		data
 
-LSPMusic:	incbin	"musicilario/demo_klang_pt_5_2_micro.lsmusic"
+LSPMusic:	incbin	"musicilario/demo_klang_pt_5_2_4_micro.lsmusic"
 			even
 
 ;---------------------------------------------------------------
@@ -697,6 +776,7 @@ movespritey:
   rts
 
 ; Routine to generate a XOR texture
+  IFD LOL
 XOR_TEXTURE:
   ;for(int y = 0; y < texHeight; y++)
   ;for(int x = 0; x < texWidth; x++)
@@ -741,7 +821,98 @@ xor_texture_x:
   addq              #1,d1
   dbra              d7,xor_texture_y
   rts
+  ENDC
 
+SQUARE:
+  dc.w 0
+  dc.w %0111111111111110
+  dc.w %0111111111111110
+  dc.w %0111111111111110
+  dc.w %0111111111111110
+  dc.w %0111111111111110
+  dc.w %0111111111111110
+  dc.w %0111111111111110
+  dc.w %0111111111111110
+  dc.w %0111111111111110
+  dc.w %0111111111111110
+  dc.w %0111111111111110
+  dc.w %0111111111111110
+  dc.w %0111111111111110
+  dc.w %0111111111111110
+  dc.w 0
+
+X:
+  dc.w %0000000000000011
+  dc.w %0000000000000110
+  dc.w %0000000000001100
+  dc.w %0000000000011000
+  dc.w %0000000000110000
+  dc.w %0000000001100000
+  dc.w %0000000011000000
+  dc.w %0000000110000000
+  dc.w %0000001100000000
+  dc.w %0000011000000000
+  dc.w %0000110000000000
+  dc.w %0001100000000000
+  dc.w %0011000000000000
+  dc.w %0110000000000000
+  dc.w %1100000000000000
+  dc.w %1000000000000000
+
+X2:
+  dc.w %1111111111111100
+  dc.w %1111111111111001
+  dc.w %1111111111110011
+  dc.w %1111111111100111
+  dc.w %1111111111001111
+  dc.w %1111111110011111
+  dc.w %1111111100111111
+  dc.w %1111111001111111
+  dc.w %1111110011111111
+  dc.w %1111100111111111
+  dc.w %1111001111111111
+  dc.w %1110011111111111
+  dc.w %1100111111111111
+  dc.w %1001111111111111
+  dc.w %0011111111111111
+  dc.w %0111111111111111
+
+CHECKERS:
+  dc.w $FF00
+  dc.w $FF00
+  dc.w $FF00
+  dc.w $FF00
+  dc.w $FF00
+  dc.w $FF00
+  dc.w $FF00
+  dc.w $FF00
+  dc.w $00FF
+  dc.w $00FF
+  dc.w $00FF
+  dc.w $00FF
+  dc.w $00FF
+  dc.w $00FF
+  dc.w $00FF
+  dc.w $00FF
+
+
+CONVERT2TEXTURE:
+    moveq #16-1,d7
+    move.w (a0)+,d0
+convert2texturestartloop:
+    moveq #0,d1
+    lsl.w #1,d0
+    smi d1
+    lsr.w #4,d1
+    move.b d1,(a1)+
+    lsl.w #4,d1
+    move.b d1,(a3)+
+    lsl.w #4,d1
+    move.w d1,(a2)+
+    lsl.w #4,d1
+    move.w d1,(a4)+
+    dbra d7,convert2texturestartloop
+    rts
 
 GENERATE_TRANSFORMATION_TABLE_X:
   lea               TRANSFORMATION_TABLE_DISTANCE(PC),a0
