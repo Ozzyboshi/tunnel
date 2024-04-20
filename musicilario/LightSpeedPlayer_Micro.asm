@@ -31,10 +31,11 @@
 LSP_dataError:	illegal
 
 LSP_MusicInitMicro:
-			cmpi.l	#'LSPm',(a0)+	; LSP "micro" mode signature
-			bne.s	LSP_dataError
-			cmpi.w	#$0118,(a0)+			; this play routine supports v1.24 as minimal version of LPConvert.exe
-			blt.s	LSP_dataError
+			;cmpi.l	#'LSPm',(a0)+	; LSP "micro" mode signature
+			;bne.s	LSP_dataError
+			;cmpi.w	#$0118,(a0)+			; this play routine supports v1.24 as minimal version of LPConvert.exe
+			;blt.s	LSP_dataError
+			addq #6,a0
 			lea		LSPMicroVars(pc),a3
 			clr.w	m_lastDmacon(a3)
 			move.l	a2,m_dmaconPatch(a3)

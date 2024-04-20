@@ -17,7 +17,7 @@ DEBUG MACRO
   ENDM
 
 ; IF_1_LESS_EQ_2_W_U - Check if a data in unsigned word format is LESS of another value
-; Input: 
+; Input:
 ;   - first parameter.w: number to check
 ;   - second paramter.w: number to check
 ;   - third parameter: label to jump if condition is false
@@ -140,12 +140,12 @@ makesinus:      lea sinus+512(pc),a0
                 lea 1026(a3),a1
                 move.l a1,a2
                 move.w #255,d0
-.gen:           move.w d0,d1 
+.gen:           move.w d0,d1
                 move.w d0,d2
-                add.w d1,d1 
-                mulu d2,d2 
-                lsr.w #8,d2 
-                sub.w d2,d1 
+                add.w d1,d1
+                mulu d2,d2
+                lsr.w #8,d2
+                sub.w d2,d1
                 move.w d1,-(a3)
                 move.w d1,(a0)+
                 neg.w d1
@@ -175,24 +175,26 @@ MAXUWORD MACRO
 BEAT_LIMIT    EQU  29
 BEAT_TIMER:   dc.w 48
 BEAT_COUNTER: dc.w 0
-TUNNEL_MIN_VELOCITY EQU 1
+TUNNEL_MIN_VELOCITY EQU 0
 TUNNEL_VELOCITY: dc.w TUNNEL_MIN_VELOCITY
+OLD_VELOCITY: dc.w 0
 
 TEXTURE_POINTER: dc.l TEXTURE_LIST
 TEXTURE_LIST: dc.l CHECKERS
               dc.l X2
               dc.l X
               dc.l SQUARE
+              dc.l LREV
               dc.l 0
 
 ATAN2_128_QUADRANT: dcb.b 4096,0
 
-ANGTABLE: 
+ANGTABLE:
     dc.w %0010110100000000 ; 45
     dc.w %0001101010010000 ; 26.565
     dc.w %0000111000001001 ; 14.036
     dc.w %0000011100100000 ; 7.125
-    dc.w %0000001110010011 ; 3.576 
+    dc.w %0000001110010011 ; 3.576
     dc.w %0000000111001010 ; 1.790
     dc.w %0000000011100101 ; 0.895
     dc.w %0000000001110010 ; 0.448
@@ -294,6 +296,7 @@ coploop:
   move.l            #$010A0000,(a0)+
   add.l             #1*16777216,d0
   dbra              d7,coploop
+  move.l            d0,(a0)+
   ; Copperlist creation END
 
   ; Start creating color table
@@ -427,7 +430,7 @@ tunnel_x_prepare:
 
   ; Set colors
   move.w            #$F,$dff180
-  move.w            #$888,$dff182
+  ;move.w            #$888,$dff182
   ;move.w            #$00f,$dff184
   move.w            #$0,$dff186
 
@@ -565,6 +568,8 @@ mouse:
   add.w             d0,d7
   ; SHIFTY END
 
+  ;moveq #0,d7 uncomment if you want the tunnel to be centered all the time
+
   lea               64+32*256+TRANSFORMATION_TABLE_DISTANCE,a3
   adda.w            d7,a3
   lea	              64+32*256+TRANSFORMATION_TABLE_Y(PC),a4
@@ -576,6 +581,13 @@ mouse:
   move.w            d3,d5
   lsl.w             #4,d5
 
+    move.w d3,OLD_VELOCITY
+  move.w TUNNEL_VELOCITY,d0
+  lsr.w #1,d0
+  lsl.w d0,d3
+  ;lsr.w #1,d3
+  moveq             #$F,d0
+
   ; y cycle start
   IFND TUNNEL_SCANLINES
   moveq             #SCREEN_RES_Y-1,d7
@@ -583,9 +595,7 @@ mouse:
   moveq             #TUNNEL_SCANLINES-1,d7
   ENDC
   ori.l             #$FF0000,d7
-tunnel_y:
-
-
+tunnel_y:  
   swap d7
   rept 16
   PRINT_PIXELS
@@ -599,6 +609,8 @@ tunnel_y:
 
   dbra              d7,tunnel_y
 tunnelend:
+
+  move.w OLD_VELOCITY,d3
   ;move.l            EFFECT_FUNCTION,a5
   ;jsr               (a5)
 
@@ -613,8 +625,12 @@ tunnelend:
   bclr              #0,Lsp_Beat+1
   move.w            #48,BEAT_TIMER
   move.w            48(a5),$DFF184
-  IF_1_LESS_EQ_2_W_U #20,BEAT_COUNTER,noaddvelocity,s
-  addq              #1,TUNNEL_VELOCITY
+  IF_1_LESS_EQ_2_W_U #22,BEAT_COUNTER,noaddvelocity,s
+  addq.w            #1,TUNNEL_VELOCITY
+  ; Set colors
+  add.w            #$111,COLOR1
+  add.w            #$111,$dff184
+  add.w            #$222,$dff186
 noaddvelocity:
   bra.s             loadbitplanes
 
@@ -649,52 +665,44 @@ txtnoreset:
   lea               TEXTURE_DATA_2,a4
   lea               TEXTURE_DATA_3,a3 ;;byte
   lea               TEXTURE_DATA_4,a2
+  rept              16
   jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
+  endr
   movem.l           (sp)+,d0-d7/a0-a6
   move.w            #1,BEAT_COUNTER
-  move.w             #TUNNEL_MIN_VELOCITY,TUNNEL_VELOCITY ; reset tunnel velocity
+  move.w            #TUNNEL_MIN_VELOCITY,TUNNEL_VELOCITY ; reset tunnel velocity
+  ; reset colors
+    ; Set colors
+  move.w            #$888,COLOR1
+  ;move.w            #$00f,$dff184
+  move.w            #$0,$dff186
 
 nochangeeffect
 
   ; increment the frame counter for animating
-  ;addq              #1,d3
-  add.w TUNNEL_VELOCITY,d3
+  addq              #1,d3
+  ;add.w             TUNNEL_VELOCITY,d3
 
   ; exit if lmb is pressed
   btst              #6,$bfe001
   bne.w             mouse
 exit_demo:
   bsr.w             LSP_MusicDriver_CIA_Stop
-  jsr             Restore_all
+  jsr               Restore_all
   clr.l             d0
   rts
 
 ;mainLoop:	bra.s	mainLoop
 
-		
-clearSprites:
-			lea		$dff140,a0
-			moveq	#8-1,d0			; 8 sprites to clear
-			moveq	#0,d1
-.clspr:		move.l	d1,(a0)+
-			move.l	d1,(a0)+
-			dbf		d0,.clspr
-			rts
+
+;clearSprites:
+;			lea		$dff140,a0
+;			moveq	#8-1,d0			; 8 sprites to clear
+;			moveq	#0,d1
+;.clspr:		move.l	d1,(a0)+
+;			move.l	d1,(a0)+
+;			dbf		d0,.clspr
+;			rts
 
 		data_c
 
@@ -724,31 +732,31 @@ Save_all:
   rts
 
 movespritex:
-  lea                   MYSPRITE0,a3
-  lea                   MYSPRITE1,a4
+  lea               MYSPRITE0,a3
+  lea               MYSPRITE1,a4
    ; if d0 is odd we are moving the spaceship to an odd location, in this case we must set
-  move.w d7,d0
-  lsr.w #1,d0
-  add.w #$90-8,d0
-  btst                 #0,d0
-  beq.s                .fspaceship2_no_odd_x
-  bset                 #0,3(a3)
-  bset                 #0,3+1*4+11*4+1*4(a3)
-  bset                 #0,3(a4)
-  bset                 #0,3+1*4+11*4+1*4(a4)
-  bra.s                .fspaceship2_place_coords
+  move.w            d7,d0
+  lsr.w             #1,d0
+  add.w             #$90-8,d0
+  btst              #0,d0
+  beq.s             .fspaceship2_no_odd_x
+  bset              #0,3(a3)
+  bset              #0,3+1*4+11*4+1*4(a3)
+  bset              #0,3(a4)
+  bset              #0,3+1*4+11*4+1*4(a4)
+  bra.s             .fspaceship2_place_coords
 .fspaceship2_no_odd_x:
-  bclr                 #0,3(a3)
-  bclr                 #0,3+1*4+11*4+1*4(a3)
-  bclr                 #0,3(a4)
-  bclr                 #0,3+1*4+11*4+1*4(a4)
+  bclr              #0,3(a3)
+  bclr              #0,3+1*4+11*4+1*4(a3)
+  bclr              #0,3(a4)
+  bclr              #0,3+1*4+11*4+1*4(a4)
 .fspaceship2_place_coords:
-  move.b               d0,1(a3)
-  move.b               d0,1+1*4+11*4+1*4(a3)
+  move.b            d0,1(a3)
+  move.b            d0,1+1*4+11*4+1*4(a3)
 
-  addq #8,d0
-  move.b               d0,1(a4)
-  move.b               d0,1+1*4+11*4+1*4(a4)
+  addq              #8,d0
+  move.b            d0,1(a4)
+  move.b            d0,1+1*4+11*4+1*4(a4)
 
   rts
 
@@ -895,6 +903,23 @@ CHECKERS:
   dc.w $00FF
   dc.w $00FF
 
+LREV:
+  dc.w %1111111111111100
+  dc.w %1111111111111100
+  dc.w %1111111111111100
+  dc.w %1111111111111100
+  dc.w %1111111111111100
+  dc.w %1111111111111100
+  dc.w %1111111111111100
+  dc.w %1111111111111100
+  dc.w %1111111111111100
+  dc.w %1111111111111100
+  dc.w %1111111111111100
+  dc.w %1111111111111100
+  dc.w %1111111111111100
+  dc.w %1111111111111100
+  dc.w %1111111111111100
+  dc.w %1111111111111100
 
 CONVERT2TEXTURE:
     moveq #16-1,d7
@@ -1224,6 +1249,9 @@ COPPERLIST:
 
   COPSET2BPL
 
+  dc.w $182
+  COLOR1: dc.w $888
+
 ;dc.w    $1a0,$000    ; color transparency
   dc.w    $1a2,$213    ; color17
   dc.w    $1a4,$446    ; color18
@@ -1267,6 +1295,9 @@ BPLPTR2:
   dc.l 0,0
 
 COPLINES: dcb.l 4*64,0
+
+  dc.l 0
+  dc.w $182,$0FF0
   
 
   ; Copperlist end
