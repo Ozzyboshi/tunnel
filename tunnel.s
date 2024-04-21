@@ -9,7 +9,7 @@ TEXTURE_HEIGHT equ 16
 RATIOX EQU 30
 RATIOY EQU 4
 
-LSBANK_HEADER EQU $e20e3491
+LSBANK_HEADER EQU 0
 
 DEBUG MACRO
   clr.w                  $100
@@ -181,10 +181,12 @@ OLD_VELOCITY: dc.w 0
 
 TEXTURE_POINTER: dc.l TEXTURE_LIST
 TEXTURE_LIST: dc.l CHECKERS
+              dc.l X4
+              dc.l LREV
+              dc.l X3
               dc.l X2
               dc.l X
               dc.l SQUARE
-              dc.l LREV
               dc.l 0
 
 ATAN2_128_QUADRANT: dcb.b 4096,0
@@ -215,7 +217,7 @@ COLORTABLE: dcb.w 48,0
   include "musicilario/LightSpeedPlayer_cia.asm"
 
 Inizio:
-  jsr             Save_all
+  jsr               Save_all
 
 	lea               $dff000,a6
   move              #$7ff,$96(a6)                                                  ;Disable DMAs
@@ -339,42 +341,27 @@ colorloop:
   lea               sinus_y(PC),a2
   jsr               AK_Generate
 
-  ;lea               OZZYVIRGILHEADER,a0
-  ;DEBUG 1111
-  ;lea LSPBank2,a1
-  ;move.w #8004-1,d7
-  ;moveq #0,d0
-;testloop:
-;  cmp.b (a0)+,(a1)+
-;  beq.s testok
-;    DEBUG 1112
-;testok:
- ;     addq #1,d0
-
-  ;dbra d7,testloop
-  ;DEBUG 1113
-
 	; CREATE SIN table
   PROTON_SINUS
 
-  lea 				sinus,a0
-  lea 				sinus_x,a1
-  lea 				sinus_y,a2
-  move.w 			#1024/2-1,d7
+  lea 				      sinus,a0
+  lea 				      sinus_x,a1
+  lea 				      sinus_y,a2
+  move.w 			      #1024/2-1,d7
 partire:
-  move.w 			(a0),d0
-  addq 				#4,a0
-  asr.w 			#2,d0
-  move.w 			d0,d1
+  move.w 			      (a0),d0
+  addq 				      #4,a0
+  asr.w 			      #2,d0
+  move.w 			      d0,d1
   asr.w             #1,d1
   asl.w             #8,d1
 
-  bclr 				#0,d0
-  move.w 			d0,(a1)+
-  move.w 			d1,(a2)+
-  dbra 				d7,partire
+  bclr  				    #0,d0
+  move.w 			      d0,(a1)+
+  move.w 			      d1,(a2)+
+  dbra 				      d7,partire
 
-  jsr 				_angleops_test9
+  jsr 				      _angleops_test9
 
   ; START preparing bitplane 0, set FF in every byte where the tunnel will be drown
   SETBITPLANE       0,a6
@@ -439,90 +426,82 @@ tunnel_x_prepare:
   ; Generate XOR texture (16px X 16px)
   ;jsr               XOR_TEXTURE
 
-  ;lea               TEXTURE_DATA_2,a3
-  ;DEBUG 1233
+  ; generate X textures
+  lea               X,a0
+  moveq             #16-1,d7
+  moveq             #3,d0
+xloop:
+
+  move.w            #$FF,16*2*2(a0)
+  move.w            d7,16*3*2(a0)
+  neg.w d7
+  move.w            d7,16*4*2(a0)
+  neg.w d7
+
+  move.w            d0,16*2(a0)
+  not.w             d0
+  move.w            d0,(a0)+
+  not.w             d0
+  lsl.w             #1,d0
+  dbra              d7,xloop
 
   lea               CHECKERS,a0
-  lea               TEXTURE_DATA,a1 ;; byte
+  lea               TEXTURE_DATA,a1 ;; byte next offset is TEXTURE_HEIGHT*TEXTURE_HEIGHT
   lea               TEXTURE_DATA_2,a4
   lea               TEXTURE_DATA_3,a3 ;;byte
   lea               TEXTURE_DATA_4,a2
+  rept              16
   jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-  jsr               CONVERT2TEXTURE
-
-  ;lea               TEXTURE_DATA_2,a3
-  ;DEBUG 1234
+  endr
 
   ; Write text
-  lea TXT,a0
+  lea               TXT,a0
   SETBITPLANE       0,a6
-  add.l #200*40,a6
-  moveq #0,d1
-  lea FONTS,a1
+  ;add.l             #200*40,a6
+  lea               200*40(a6),a6
+  moveq             #0,d1
+  lea               FONTS,a1
 nextletter:
-  moveq #0,d0
-  move.b (a0),d0
-  beq.s txtend
+  moveq             #0,d0
+  move.b            (a0),d0
+  beq.s             txtend
 
   ; manage newline start
-  cmp.b #$FF,d0
-  bne.s validletter
-  add.w #1*8*40,d1
+  cmp.b             #$FF,d0
+  bne.s             validletter
+  add.w             #1*8*40,d1
   SETBITPLANE       0,a6
-  add.l #200*40,a6
-  add.w d1,a6
-  addq #1,a0
-  bra.s nextletter
+  lea               200*40(a6),a6
+  ;add.l             #200*40,a6
+  add.w             d1,a6
+  addq              #1,a0
+  bra.s             nextletter
   ; manage newline end
 
 validletter:
-  subi.w #$30,d0
-  muls #6,d0
-  move.b 0(a1,d0.w),(a6)
-  move.b 1(a1,d0.w),40(a6)
-  move.b 2(a1,d0.w),80(a6)
-  move.b 3(a1,d0.w),120(a6)
-  move.b 4(a1,d0.w),160(a6)
-  move.b 5(a1,d0.w),200(a6)
-  addq #1,a6
-  addq #1,a0
+  subi.w            #$30,d0
+  muls              #6,d0
+  move.b            0(a1,d0.w),(a6)
+  move.b            1(a1,d0.w),40(a6)
+  move.b            2(a1,d0.w),80(a6)
+  move.b            3(a1,d0.w),120(a6)
+  move.b            4(a1,d0.w),160(a6)
+  move.b            5(a1,d0.w),200(a6)
+  addq              #1,a6
+  addq              #1,a0
 
-  bra.s nextletter
+  bra.s             nextletter
 txtend:
 
-	;code
-		
-			;move.w	#(1<<5)|(1<<6)|(1<<7)|(1<<8),$dff096
+  ; Init LSP and start replay using easy CIA toolbox
+	lea		            LSPMusic,a0
+	lea		            OZZYVIRGILHEADER,a1
+	;lea LSPBank2,a1
+  suba.l	          a2,a2			; suppose VBR=0 ( A500 )
+	moveq	            #0,d0			; suppose PAL machine
+	bsr		            LSP_MusicDriver_CIA_Start
 
-			;bsr		clearSprites
-
-			move.w	#$0,$dff1fc
-			;move.w	#$200,$dff100	; 0 bitplan
-			;move.w	#$04f,$dff180
-	
-		; Init LSP and start replay using easy CIA toolbox
-			lea		LSPMusic,a0
-			lea		OZZYVIRGILHEADER,a1
-			;lea LSPBank2,a1
-      suba.l	a2,a2			; suppose VBR=0 ( A500 )
-			moveq	#0,d0			; suppose PAL machine
-			bsr		LSP_MusicDriver_CIA_Start
-
-			move.w	#$e000,$dff09a
+	move.w	          #$e000,$dff09a
 
   moveq             #0,d3 ; reset current time variable
   move.l            #40*256*2*-1,d6
@@ -575,18 +554,16 @@ mouse:
   lea	              64+32*256+TRANSFORMATION_TABLE_Y(PC),a4
   adda.w            d7,a4
 
-  moveq             #$F,d0
-
   ; multiply counter by 16
   move.w            d3,d5
   lsl.w             #4,d5
 
-    move.w d3,OLD_VELOCITY
-  move.w TUNNEL_VELOCITY,d0
-  lsr.w #1,d0
-  lsl.w d0,d3
-  ;lsr.w #1,d3
-  moveq             #$F,d0
+  move.w            d3,d0
+  swap              d0 ; old velocity is on high part of d0
+  move.w            TUNNEL_VELOCITY,d0
+  lsr.w             #1,d0
+  lsl.w             d0,d3
+  move.w            #$F,d0 ; d0 must hold this value upon entering here
 
   ; y cycle start
   IFND TUNNEL_SCANLINES
@@ -610,7 +587,9 @@ tunnel_y:
   dbra              d7,tunnel_y
 tunnelend:
 
-  move.w OLD_VELOCITY,d3
+  swap              d0
+  move.w            d0,d3 ; resume old counter
+
   ;move.l            EFFECT_FUNCTION,a5
   ;jsr               (a5)
 
@@ -850,40 +829,94 @@ SQUARE:
   dc.w 0
 
 X:
-  dc.w %0000000000000011
-  dc.w %0000000000000110
-  dc.w %0000000000001100
-  dc.w %0000000000011000
-  dc.w %0000000000110000
-  dc.w %0000000001100000
-  dc.w %0000000011000000
-  dc.w %0000000110000000
-  dc.w %0000001100000000
-  dc.w %0000011000000000
-  dc.w %0000110000000000
-  dc.w %0001100000000000
-  dc.w %0011000000000000
-  dc.w %0110000000000000
-  dc.w %1100000000000000
-  dc.w %1000000000000000
+  dc.w 0 ; %0000000000000011
+  dc.w 0 ; %0000000000000110
+  dc.w 0 ; %0000000000001100
+  dc.w 0 ; %0000000000011000
+  dc.w 0 ; %0000000000110000
+  dc.w 0 ; %0000000001100000
+  dc.w 0 ; %0000000011000000
+  dc.w 0 ; %0000000110000000
+  dc.w 0 ; %0000001100000000
+  dc.w 0 ; %0000011000000000
+  dc.w 0 ; %0000110000000000
+  dc.w 0 ; %0001100000000000
+  dc.w 0 ; %0011000000000000
+  dc.w 0 ; %0110000000000000
+  dc.w 0 ; %1100000000000000
+  dc.w 0 ; %1000000000000000
 
 X2:
-  dc.w %1111111111111100
-  dc.w %1111111111111001
-  dc.w %1111111111110011
-  dc.w %1111111111100111
-  dc.w %1111111111001111
-  dc.w %1111111110011111
-  dc.w %1111111100111111
-  dc.w %1111111001111111
-  dc.w %1111110011111111
-  dc.w %1111100111111111
-  dc.w %1111001111111111
-  dc.w %1110011111111111
-  dc.w %1100111111111111
-  dc.w %1001111111111111
-  dc.w %0011111111111111
-  dc.w %0111111111111111
+  dc.w 0 ; %1111111111111100
+  dc.w 0 ; %1111111111111001
+  dc.w 0 ; %1111111111110011
+  dc.w 0 ; %1111111111100111
+  dc.w 0 ; %1111111111001111
+  dc.w 0 ; %1111111110011111
+  dc.w 0 ; %1111111100111111
+  dc.w 0 ; %1111111001111111
+  dc.w 0 ; %1111110011111111
+  dc.w 0 ; %1111100111111111
+  dc.w 0 ; %1111001111111111
+  dc.w 0 ; %1110011111111111
+  dc.w 0 ; %1100111111111111
+  dc.w 0 ; %1001111111111111
+  dc.w 0 ; %0011111111111111
+  dc.w 0 ; %0111111111111111
+
+X3:
+  dc.w 0 ; %1111111111111100
+  dc.w 0 ; %1111111111111001
+  dc.w 0 ; %1111111111110011
+  dc.w 0 ; %1111111111100111
+  dc.w 0 ; %1111111111001111
+  dc.w 0 ; %1111111110011111
+  dc.w 0 ; %1111111100111111
+  dc.w 0 ; %1111111001111111
+  dc.w 0 ; %1111110011111111
+  dc.w 0 ; %1111100111111111
+  dc.w 0 ; %1111001111111111
+  dc.w 0 ; %1110011111111111
+  dc.w 0 ; %1100111111111111
+  dc.w 0 ; %1001111111111111
+  dc.w 0 ; %0011111111111111
+  dc.w 0 ; %0111111111111111
+
+LREV:
+  dc.w 0 ;%1111111111111100
+  dc.w 0 ;%1111111111111100
+  dc.w 0 ;%1111111111111100
+  dc.w 0 ;%1111111111111100
+  dc.w 0 ;%1111111111111100
+  dc.w 0 ;%1111111111111100
+  dc.w 0 ;%1111111111111100
+  dc.w 0 ;%1111111111111100
+  dc.w 0 ;%1111111111111100
+  dc.w 0 ;%1111111111111100
+  dc.w 0 ;%1111111111111100
+  dc.w 0 ;%1111111111111100
+  dc.w 0 ;%1111111111111100
+  dc.w 0 ;%1111111111111100
+  dc.w 0 ;%1111111111111100
+  dc.w 0 ;%1111111111111100
+
+X4:
+  dc.w 0
+  dc.w 0
+  dc.w 0
+  dc.w 0
+  dc.w 0
+  dc.w 0
+  dc.w 0
+  dc.w 0
+  dc.w 0
+  dc.w 0
+  dc.w 0
+  dc.w 0
+  dc.w 0
+  dc.w 0
+  dc.w 0
+  dc.w 0
 
 CHECKERS:
   dc.w $FF00
@@ -902,24 +935,6 @@ CHECKERS:
   dc.w $00FF
   dc.w $00FF
   dc.w $00FF
-
-LREV:
-  dc.w %1111111111111100
-  dc.w %1111111111111100
-  dc.w %1111111111111100
-  dc.w %1111111111111100
-  dc.w %1111111111111100
-  dc.w %1111111111111100
-  dc.w %1111111111111100
-  dc.w %1111111111111100
-  dc.w %1111111111111100
-  dc.w %1111111111111100
-  dc.w %1111111111111100
-  dc.w %1111111111111100
-  dc.w %1111111111111100
-  dc.w %1111111111111100
-  dc.w %1111111111111100
-  dc.w %1111111111111100
 
 CONVERT2TEXTURE:
     moveq #16-1,d7
