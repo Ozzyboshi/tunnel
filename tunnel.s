@@ -9,12 +9,47 @@ TEXTURE_HEIGHT equ 16
 RATIOX EQU 30
 RATIOY EQU 4
 
+FONTCOLOR EQU $0FF0
+
 LSBANK_HEADER EQU 0
 
 DEBUG MACRO
   clr.w                  $100
   move.w                 #$\1,d3
   ENDM
+
+; IF_1_GREATER_2_W_S - Check if a data in signed word format is greater of another value
+; Input:
+;   - first parameter.w: number to check
+;   - second paramter.w: number to check
+;   - third parameter: label to jump if condition is false
+;   - fourth parameter: size of the jump (s,w)
+; Output:
+;   - nothing
+; Trashes:
+;   Nothing
+IF_1_GREATER_2_W_S MACRO
+    IFC '','\1'
+    fail missing first operand!
+    MEXIT
+    ENDC
+    IFC '','\2'
+    fail missing second operand!
+    MEXIT
+    ENDC
+    IFC '','\3'
+    fail missing label to jump
+    MEXIT
+    ENDC
+    IFNC 'w','\4'
+    IFNC 's','\4'
+    fail jump size unknown
+    MEXIT
+    ENDC
+    ENDC
+    cmp.w               \1,\2
+    bge.\4              \3
+    ENDM
 
 ; IF_1_LESS_EQ_2_W_U - Check if a data in unsigned word format is LESS of another value
 ; Input:
@@ -209,8 +244,10 @@ sinus:            dcb.w 1024,0
 sinus_x:          dcb.w 128*4,0
 sinus_y:          dcb.w 128*4,0
 
-COLORTABLE: dcb.w 48,0
-
+COLORTABLE:       dcb.w 48,0
+COLOR1VALUE:      dc.w $A80
+COLORBEATACCELERATION: dcb.w 8,0
+COLORBACKGROUNDACCELERATION: dcb.w 8,0
 
   include "deg2raddivpi2.i"
   include "musicilario/LightSpeedPlayer_Micro.asm"
@@ -301,33 +338,30 @@ coploop:
   move.l            d0,(a0)+
   ; Copperlist creation END
 
-  ; Start creating color table
-  moveq             #24-1,d7
-  moveq             #0,d0
+  ; Color 1 default value
+  move.w            COLOR1VALUE,COLOR1
+
+  ; Build beat table
+  move.w            #0,d0
+  move.w            #$F00,d1
+  move.w            #24,d7
   lea               COLORTABLE(PC),a0
-colorloop:
-  moveq             #0,d1
-  moveq             #24,d2
-  moveq             #0,d3
-  move.w            #$F,d4
+  jsr               buildcolortable
 
-  ; MAP execution - start
-  move.l            d0,d5
-  sub.w             d3,d4 ; d4 = output_end - output_start
-  sub.w             d1,d2 ; d2 = input_end - input_start
-  sub.w             d1,d0 ; d0 = (input - input_start)
-  muls              d0,d4
-  divs              d2,d4
-  add.w             d3,d4
-  move.l            d5,d0
-  ; Map execution - end
+  ; Build acceleration table (beatcolor)
+  lea               COLORBEATACCELERATION(PC),a0
+  move.w            #$F00,d0
+  move.w            #$FFF,d1
+  move.w            #7,d7
+  jsr               buildcolortable
 
-  move.w            d4,d1
-  lsl.w             #8,d4
-  or.w              d1,d4
-  move.w            d4,(a0)+
-  addq              #1,d0
-  dbra              d7,colorloop
+  ; Build acceleration table (backgroundcolor)
+  lea               COLORBACKGROUNDACCELERATION(PC),a0
+  move.w            COLOR1VALUE,d0
+  move.w            #$FFF,d1
+  move.w            #7,d7
+  jsr               buildcolortable
+
   ; Stop creating color table
 
   ; Call 'AK_Generate' with the following registers set:
@@ -410,15 +444,13 @@ tunnel_x_prepare:
   LEA               SpritePointers+24,a5
   POINTINCOPPERLIST
 
-  jsr             GENERATE_TRANSFORMATION_TABLE_Y
+  jsr               GENERATE_TRANSFORMATION_TABLE_Y
 
   ; Generate transformation table for distance
-  jsr             GENERATE_TRANSFORMATION_TABLE_X
+  jsr               GENERATE_TRANSFORMATION_TABLE_X
 
   ; Set colors
   move.w            #$F,$dff180
-  ;move.w            #$888,$dff182
-  ;move.w            #$00f,$dff184
   move.w            #$0,$dff186
 
   ; set modulo
@@ -572,7 +604,7 @@ mouse:
   moveq             #TUNNEL_SCANLINES-1,d7
   ENDC
   ori.l             #$FF0000,d7
-tunnel_y:  
+tunnel_y:
   swap d7
   rept 16
   PRINT_PIXELS
@@ -599,25 +631,38 @@ tunnelend:
 
   lea               COLORTABLE(PC),a5
   btst              #0,Lsp_Beat+1
-  beq.s             colorcycle
-  addq              #1,BEAT_COUNTER
-  bclr              #0,Lsp_Beat+1
-  move.w            #48,BEAT_TIMER
-  move.w            48(a5),$DFF184
-  IF_1_LESS_EQ_2_W_U #22,BEAT_COUNTER,noaddvelocity,s
-  addq.w            #1,TUNNEL_VELOCITY
+  beq.s             colorcycle        ; if no beat we the beat color must return to the original state according to colortable
+
+  ; IF WE ARE HERE IT MEANS WE HAVE A BEAT
+  addq              #1,BEAT_COUNTER ; increase beat counter
+  bclr              #0,Lsp_Beat+1   ; ack beat
+  move.w            #48,BEAT_TIMER  ; reset beat timer to 48
+  move.w            48(a5),COLOR2   ; set color to to the first color
+
+  IF_1_LESS_EQ_2_W_U #22,BEAT_COUNTER,noaddvelocity,s ; check if we are managing the transition stage
+  ; IF WE ARE HERE WE MUST MANAGE THE TRANSITION STAGE
+  addq.w            #1,TUNNEL_VELOCITY  ; add velocity to the tunnel
   ; Set colors
-  add.w            #$111,COLOR1
-  add.w            #$111,$dff184
-  add.w            #$222,$dff186
+  ; routine to change colors towards white
+  move.w            BEAT_COUNTER,d5
+  subi.w            #22,d5
+  add.w             d5,d5
+  lea               COLORBEATACCELERATION(PC),a5
+  move.w            0(a5,d5),COLOR2
+  lea               COLORBACKGROUNDACCELERATION(PC),a5
+  move.w            0(a5,d5),COLOR1
+  ;move.w            0(a5,d5),$dff186
+
+  ;add.w            #$222,$dff186
 noaddvelocity:
   bra.s             loadbitplanes
 
 colorcycle:
+  IF_1_GREATER_2_W_S #22,BEAT_COUNTER,loadbitplanes,s ; if beattimer <= 22
   move.w            BEAT_TIMER,d5
   subq              #2,d5
   beq.s             loadbitplanes
-  move.w            0(a5,d5.w),$DFF184
+  move.w            0(a5,d5.w),COLOR2
   move.w            d5,BEAT_TIMER
 
   ; load bitplanes in copperlist
@@ -651,9 +696,7 @@ txtnoreset:
   move.w            #1,BEAT_COUNTER
   move.w            #TUNNEL_MIN_VELOCITY,TUNNEL_VELOCITY ; reset tunnel velocity
   ; reset colors
-    ; Set colors
-  move.w            #$888,COLOR1
-  ;move.w            #$00f,$dff184
+  move.w            COLOR1VALUE,COLOR1
   move.w            #$0,$dff186
 
 nochangeeffect
@@ -671,21 +714,9 @@ exit_demo:
   clr.l             d0
   rts
 
-;mainLoop:	bra.s	mainLoop
+	data_c
 
-
-;clearSprites:
-;			lea		$dff140,a0
-;			moveq	#8-1,d0			; 8 sprites to clear
-;			moveq	#0,d1
-;.clspr:		move.l	d1,(a0)+
-;			move.l	d1,(a0)+
-;			dbf		d0,.clspr
-;			rts
-
-		data_c
-
-		data
+	data
 
 LSPMusic:	incbin	"musicilario/demo_klang_pt_5_2_4_micro.lsmusic"
 			even
@@ -740,25 +771,25 @@ movespritex:
   rts
 
 movespritey:
-  lea                   MYSPRITE0,a3
-  lea                   MYSPRITE1,a4
-  swap                  d7
-  move.w                d0,d7
-  lsr.w                 #7,d7
+  lea               MYSPRITE0,a3
+  lea               MYSPRITE1,a4
+  swap              d7
+  move.w            d0,d7
+  lsr.w             #7,d7
 
-  add.w                 #$80,d7
+  add.w             #$80,d7
 
-  move.b               d7,(a3)
-  move.b               d7,1*4+11*4+1*4(a3)
-  move.b               d7,(a4)
-  move.b               d7,1*4+11*4+1*4(a4)
+  move.b            d7,(a3)
+  move.b            d7,1*4+11*4+1*4(a3)
+  move.b            d7,(a4)
+  move.b            d7,1*4+11*4+1*4(a4)
 
-  add.w #11,d7
-  move.b               d7,2(a3)
-  move.b               d7,2+1*4+11*4+1*4(a3)
-  move.b               d7,2(a4)
-  move.b               d7,2+1*4+11*4+1*4(a4)
-  swap d7
+  add.w             #11,d7
+  move.b            d7,2(a3)
+  move.b            d7,2+1*4+11*4+1*4(a3)
+  move.b            d7,2(a4)
+  move.b            d7,2+1*4+11*4+1*4(a4)
+  swap              d7
 
   rts
 
@@ -1070,51 +1101,48 @@ table_y_precalc_x:
   ;double atan_distance = atan2(y - height / 64.0, x - width / 64.0)/M_PI;
 
   ; compute y - height / 64.0
-  move.w           d5,d0
+  move.w            d5,d0
   subi.w            #SCREEN_RES_Y,d0
 
   ; compute X - width / 64.0
-  move.w           d4,d1
-  subi.w           #SCREEN_RES_X,d1
+  move.w            d4,d1
+  subi.w            #SCREEN_RES_X,d1
 
   ;we are ready to call atan2(y,x)/PI
-  movem.l          d0/d1,-(sp)
-  jsr              ATAN2_PI_128
-  movem.l          (sp)+,d0/d1
-  asr.w            #3,d3
+  movem.l           d0-d7/a0-a6,-(sp)
+  jsr               ATAN2_PI_128
+  movem.l           (sp)+,d0-d7/a0-a6
+  asr.w             #3,d3
 
   ;multiply by texture width and ratioY
-  muls             #TEXTURE_WIDTH*RATIOY,d3
+  muls              #TEXTURE_WIDTH*RATIOY,d3
 
-  asr.w            #2,d3
+  asr.w             #2,d3
 
-  move.w           d3,(a1)+
+  move.w            d3,(a1)+
 
-  addq             #1,d4
-  dbra             d6,table_y_precalc_x
+  addq              #1,d4
+  dbra              d6,table_y_precalc_x
 
-  addq             #1,d5
-  dbra             d7,table_y_precalc_y
+  addq              #1,d5
+  dbra              d7,table_y_precalc_y
   rts
 
 
 _angleops_test9:
-  
+
   lea ATAN2_128_QUADRANT,a0
   moveq #64-1,d6 ; how many cycles for x?
   move.w #1,d0
-test9loopx:  
-  
+test9loopx:
   move.w #1,d1
   moveq #0,d5
 
-
   moveq #64-1,d7 ; how many cycles for y?
 test9loop;
-
-  movem.l d0/d1/d2/d4/d5/d6/d7/a0,-(sp)
+  movem.l           d0-d7/a0-a6,-(sp)
   jsr CORDIC
-  movem.l (sp)+,d0/d1/d2/d4/d5/d6/d7/a0
+  movem.l           (sp)+,d0-d7/a0-a6
   lsr.w #8,d3
   cmp.b #$FF,d3
   bne.s noerrore
@@ -1160,7 +1188,7 @@ cordicloop:
     neg.w d4
     asr.w d6,d4  ; Y is now shifted into d5
     add.w d1,d4
-    
+
     add.w (a0)+,d3 ; SumAngle += AngTable[i]
 
     bra cordicincreaseangle
@@ -1190,12 +1218,125 @@ cordicincreaseangle:
     beq CORDINCEND
 
     addq #1,d6 ; Increment shifting
-    
-    ; cycle over 
+
+    ; cycle over
     bra cordicloop
 CORDINCEND:
     rts
 
+buildcolortable:
+    move.l a0,a1 ; pointer to the output color table (be sure to allocate enough space)
+    move.w d0,d2       ; save start value to d2 to manipulate
+    move.w d1,d3       ; save end value to d3 to manupulate
+    moveq #1,d6        ; another counter, this will go from 1 to steps
+
+    ; save d7 in the high part of itself
+    move.w d7,d5
+    swap d7
+    move.w d5,d7
+
+    ; get the BLUE DIFFERENCE
+    andi.w #$F,d2
+    andi.w #$F,d3
+
+    sub.b d3,d2
+
+    lsl.w  #8,d2 ; multiply for dividing later
+    move.w d7,d5
+    addq #1,d5
+    ext.l d2
+    divs  d5,d2  ; d2 is 1 / steps x 256
+
+; loop start
+buildcolortableloopblue:
+    move.w d2,d5
+    muls  d6,d5
+    asr.w #8,d5
+
+    move.w d0,d4
+    andi.w #$f,d4
+    sub.b  d5,d4
+
+    or.w d4,(a1)+
+    addq #1,d6
+    dbra d7,buildcolortableloopblue
+
+    ; get the GREEN DIFFERENCE
+    move.l a0,a1
+    move.w d0,d2
+    move.w d1,d3
+    moveq #1,d6
+    move.l d7,d5
+    swap d5
+    move.w d5,d7
+
+    lsr.w #4,d2
+    lsr.w #4,d3
+    andi.w #$F,d2
+    andi.w #$F,d3
+    sub.b d3,d2
+
+    lsl.w  #8,d2 ; multiply for dividing later
+    move.w d7,d5
+    addq #1,d5
+    ext.l d2
+    divs  d5,d2  ; d2 is 1 / steps x 256
+
+    ; loop start for green
+buildcolortableloopgreen:
+    move.w d2,d5
+    muls  d6,d5
+    asr.w #8,d5
+
+    move.w d0,d4
+    lsr.w #4,d4
+    andi.w #$f,d4
+    sub.b  d5,d4
+
+    lsl.w #4,d4
+    or.w d4,(a1)+
+    addq #1,d6
+    dbra d7,buildcolortableloopgreen
+
+    ; get the RED DIFFERENCE
+    move.l a0,a1
+    move.w d0,d2
+    move.w d1,d3
+    moveq #1,d6
+    move.l d7,d5
+    swap d5
+    move.w d5,d7
+
+    lsr.w #8,d2
+    lsr.w #8,d3
+    andi.w #$F,d2
+    andi.w #$F,d3
+    sub.b d3,d2
+
+    lsl.w  #8,d2 ; multiply for dividing later
+    move.w d7,d5
+    addq #1,d5
+    ext.l d2
+    divs  d5,d2  ; d2 is 1 / steps x 256
+
+    ; loop start for red
+buildcolortableloopred:
+    move.w d2,d5
+    muls  d6,d5
+    asr.w #8,d5
+
+    move.w d0,d4
+    lsr.w #8,d4
+    andi.w #$f,d4
+    sub.b  d5,d4
+
+    lsl.w #8,d4
+    or.w d4,(a1)+
+
+    addq #1,d6
+    dbra d7,buildcolortableloopred
+
+    rts
 Restore_all:
   move.l            SaveIRQ,$6c
   move.w            #$7fff,$dff09a
@@ -1265,7 +1406,10 @@ COPPERLIST:
   COPSET2BPL
 
   dc.w $182
-  COLOR1: dc.w $888
+COLOR1: dc.w 0
+
+  dc.w $184
+COLOR2: dc.w 0
 
 ;dc.w    $1a0,$000    ; color transparency
   dc.w    $1a2,$213    ; color17
@@ -1312,8 +1456,7 @@ BPLPTR2:
 COPLINES: dcb.l 4*64,0
 
   dc.l 0
-  dc.w $182,$0FF0
-  
+  dc.w $182,FONTCOLOR
 
   ; Copperlist end
   dc.w       $FFFF,$FFFE                                               ; End of copperlist
