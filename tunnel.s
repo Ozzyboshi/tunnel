@@ -212,6 +212,8 @@ BEAT_TIMER:   dc.w 48
 BEAT_COUNTER: dc.w 0
 TUNNEL_MIN_VELOCITY EQU 0
 TUNNEL_VELOCITY: dc.w TUNNEL_MIN_VELOCITY
+COLORTABLEPTR:   dc.l COLORTABLE
+COLORBEATACCELERATIONPTR: dc.l COLORBEATACCELERATION
 OLD_VELOCITY: dc.w 0
 
 TEXTURE_POINTER: dc.l TEXTURE_LIST
@@ -244,9 +246,19 @@ sinus:            dcb.w 1024,0
 sinus_x:          dcb.w 128*4,0
 sinus_y:          dcb.w 128*4,0
 
+COLORTABLEPTRSTART:
 COLORTABLE:       dcb.w 48,0
+COLORTABLE2:      dcb.w 48,0
+COLORTABLE3:      dcb.w 48,0
+COLORTABLEPTREND:
 COLOR1VALUE:      dc.w $A80
+
+COLORBEATACCELERATIONPTRSTART:
 COLORBEATACCELERATION: dcb.w 8,0
+COLORBEATACCELERATION2: dcb.w 8,0
+COLORBEATACCELERATION3: dcb.w 8,0
+COLORBEATACCELERATIONPTREND:
+
 COLORBACKGROUNDACCELERATION: dcb.w 8,0
 
   include "deg2raddivpi2.i"
@@ -348,9 +360,34 @@ coploop:
   lea               COLORTABLE(PC),a0
   jsr               buildcolortable
 
+  move.w            #7,d0
+  move.w            #$0F0,d1
+  move.w            #24,d7
+  lea               COLORTABLE2(PC),a0
+  jsr               buildcolortable
+
+
+  move.w            #77,d0
+  move.w            #$FF0,d1
+  move.w            #24,d7
+  lea               COLORTABLE3(PC),a0
+  jsr               buildcolortable
+
   ; Build acceleration table (beatcolor)
   lea               COLORBEATACCELERATION(PC),a0
   move.w            #$F00,d0
+  move.w            #$FFF,d1
+  move.w            #7,d7
+  jsr               buildcolortable
+
+  lea               COLORBEATACCELERATION2(PC),a0
+  move.w            #$0F0,d0
+  move.w            #$FFF,d1
+  move.w            #7,d7
+  jsr               buildcolortable
+
+  lea               COLORBEATACCELERATION3(PC),a0
+  move.w            #$FF0,d0
   move.w            #$FFF,d1
   move.w            #7,d7
   jsr               buildcolortable
@@ -526,13 +563,15 @@ validletter:
 txtend:
 
   ; Init LSP and start replay using easy CIA toolbox
+mouse2:
+  cmpi.b            #$ff,$dff006                                                   ; Are we at line 255?
+  bne.s             mouse2
 	lea		            LSPMusic,a0
 	lea		            OZZYVIRGILHEADER,a1
 	;lea LSPBank2,a1
   suba.l	          a2,a2			; suppose VBR=0 ( A500 )
 	moveq	            #0,d0			; suppose PAL machine
 	bsr		            LSP_MusicDriver_CIA_Start
-
 	move.w	          #$e000,$dff09a
 
   moveq             #0,d3 ; reset current time variable
@@ -629,7 +668,14 @@ tunnelend:
   move.w            #$000,$dff180
   ENDC
 
-  lea               COLORTABLE(PC),a5
+  move.l            COLORTABLEPTR,a5
+  cmp.l             #COLORTABLEPTREND,a5
+  bne.s             noresetcolorptr
+  move.l            #COLORTABLEPTRSTART,COLORTABLEPTR
+  move.l            COLORTABLEPTR,a5
+noresetcolorptr:
+  ;move.l            (a5),a5
+  ;lea               COLORTABLE(PC),a5
   btst              #0,Lsp_Beat+1
   beq.s             colorcycle        ; if no beat we the beat color must return to the original state according to colortable
 
@@ -647,7 +693,13 @@ tunnelend:
   move.w            BEAT_COUNTER,d5
   subi.w            #22,d5
   add.w             d5,d5
-  lea               COLORBEATACCELERATION(PC),a5
+  ;lea               COLORBEATACCELERATION(PC),a5
+  move.l COLORBEATACCELERATIONPTR,a5
+  cmp.l #COLORBEATACCELERATIONPTREND,a5
+  bne.s nocolorbeataccelerationreset
+  move.w COLORBEATACCELERATIONPTRSTART,COLORBEATACCELERATIONPTR
+  move.w COLORBEATACCELERATIONPTRSTART,a5
+nocolorbeataccelerationreset
   move.w            0(a5,d5),COLOR2
   lea               COLORBACKGROUNDACCELERATION(PC),a5
   move.w            0(a5,d5),COLOR1
@@ -698,12 +750,15 @@ txtnoreset:
   ; reset colors
   move.w            COLOR1VALUE,COLOR1
   move.w            #$0,$dff186
+  ; go to next beatcolortable
+  addi.l            #96,COLORTABLEPTR
+  addi.l            #16,COLORBEATACCELERATIONPTR
 
 nochangeeffect
 
   ; increment the frame counter for animating
   addq              #1,d3
-  ;add.w             TUNNEL_VELOCITY,d3
+  add.w             TUNNEL_VELOCITY,d3
 
   ; exit if lmb is pressed
   btst              #6,$bfe001
@@ -1109,9 +1164,9 @@ table_y_precalc_x:
   subi.w            #SCREEN_RES_X,d1
 
   ;we are ready to call atan2(y,x)/PI
-  movem.l           d0-d7/a0-a6,-(sp)
+  movem.l          d0/d1,-(sp)
   jsr               ATAN2_PI_128
-  movem.l           (sp)+,d0-d7/a0-a6
+  movem.l          (sp)+,d0/d1
   asr.w             #3,d3
 
   ;multiply by texture width and ratioY
@@ -1140,9 +1195,9 @@ test9loopx:
 
   moveq #64-1,d7 ; how many cycles for y?
 test9loop;
-  movem.l           d0-d7/a0-a6,-(sp)
+   movem.l d0/d1/d2/d4/d5/d6/d7/a0,-(sp)
   jsr CORDIC
-  movem.l           (sp)+,d0-d7/a0-a6
+   movem.l (sp)+,d0/d1/d2/d4/d5/d6/d7/a0
   lsr.w #8,d3
   cmp.b #$FF,d3
   bne.s noerrore
