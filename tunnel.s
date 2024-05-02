@@ -226,8 +226,6 @@ TEXTURE_LIST: dc.l CHECKERS
               dc.l SQUARE
               dc.l 0
 
-ATAN2_128_QUADRANT: dcb.b 4096,0
-
 ANGTABLE:
     dc.w %0010110100000000 ; 45
     dc.w %0001101010010000 ; 26.565
@@ -238,6 +236,17 @@ ANGTABLE:
     dc.w %0000000011100101 ; 0.895
     dc.w %0000000001110010 ; 0.448
     dc.w 0
+
+COLORSTUNNEL:
+    dc.w $0F,$00,$00,$00,$00,$00 ; from black to red
+    dc.w $00,$00,$0F,$00,$00,$07 ; from green to dark blue
+    dc.w $0F,$00,$0F,$07,$00,$07 ; yellow gradient
+    
+    dc.w $0F,$0F,$0F,$00,$0F,$00 ; start of transition colors
+    dc.w $0F,$00,$0F,$0F,$0F,$00
+    dc.w $0F,$0F,$0F,$0F,$0F,$00
+
+    dc.w $0F,$0A,$0F,$08,$0F,$00
 
 TRANSFORMATION_TABLE_Y:
   dcb.w SCREEN_RES_X*2*SCREEN_RES_Y*2,0
@@ -354,50 +363,79 @@ coploop:
   move.w            COLOR1VALUE,COLOR1
 
   ; Build beat table
-  move.w            #0,d0
-  move.w            #$F00,d1
-  move.w            #24,d7
-  lea               COLORTABLE(PC),a0
-  jsr               buildcolortable
+  ;move.w            #0,d0
+  ;move.w            #$F00,d1
+  ;move.w            #24,d7
+  ;lea               COLORTABLE(PC),a0
+  ;jsr               buildcolortable
+  lea               COLORSTUNNEL,a0
+  lea               COLORTABLE,a1
+  moveq             #24-1,d7
+  jsr               BUILDCOLORTABLEMAP_SMALL
 
-  move.w            #7,d0
-  move.w            #$0F0,d1
-  move.w            #24,d7
-  lea               COLORTABLE2(PC),a0
-  jsr               buildcolortable
+;  move.w            #7,d0
+;  move.w            #$0F0,d1
+;  move.w            #24,d7
+;  lea               COLORTABLE2(PC),a0
+;  jsr               buildcolortable
+  ;lea               COLORSTUNNEL+12,a0
+  lea               COLORTABLE2,a1
+  adda.w            #12,a0
+  moveq             #24-1,d7
+  jsr               BUILDCOLORTABLEMAP_SMALL
 
-
-  move.w            #77,d0
-  move.w            #$FF0,d1
-  move.w            #24,d7
-  lea               COLORTABLE3(PC),a0
-  jsr               buildcolortable
+  ;move.w            #77,d0
+  ;move.w            #$FF0,d1
+  ;move.w            #24,d7
+  ;lea               COLORTABLE3(PC),a0
+  ;jsr               buildcolortable
+  ;lea               COLORSTUNNEL+24,a0
+  lea               COLORTABLE3,a1
+  adda.w            #12,a0
+  moveq             #24-1,d7
+  jsr               BUILDCOLORTABLEMAP_SMALL
 
   ; Build acceleration table (beatcolor)
-  lea               COLORBEATACCELERATION(PC),a0
-  move.w            #$F00,d0
-  move.w            #$FFF,d1
-  move.w            #7,d7
-  jsr               buildcolortable
+  ;lea               COLORBEATACCELERATION(PC),a0
+  ;move.w            #$F00,d0
+  ;move.w            #$FFF,d1
+  ;move.w            #7,d7
+  ;jsr               buildcolortable
+  lea               COLORBEATACCELERATION,a1
+  adda.w            #12,a0
+  moveq             #7-1,d7
+  jsr               BUILDCOLORTABLEMAP_SMALL
 
-  lea               COLORBEATACCELERATION2(PC),a0
-  move.w            #$0F0,d0
-  move.w            #$FFF,d1
-  move.w            #7,d7
-  jsr               buildcolortable
+  ;               COLORBEATACCELERATION2(PC),a0
+  ;move.w            #$0F0,d0
+  ;move.w            #$FFF,d1
+  ;move.w            #7,d7
+  ;jsr               buildcolortable
+  lea               COLORBEATACCELERATION2,a1
+  adda.w            #12,a0
+  moveq             #7-1,d7
+  jsr               BUILDCOLORTABLEMAP_SMALL
 
-  lea               COLORBEATACCELERATION3(PC),a0
-  move.w            #$FF0,d0
-  move.w            #$FFF,d1
-  move.w            #7,d7
-  jsr               buildcolortable
+  ;lea               COLORBEATACCELERATION3(PC),a0
+  ;move.w            #$FF0,d0
+  ;move.w            #$FFF,d1
+  ;move.w            #7,d7
+  ;jsr               buildcolortable
+  lea               COLORBEATACCELERATION3,a1
+  adda.w            #12,a0
+  moveq             #7-1,d7
+  jsr               BUILDCOLORTABLEMAP_SMALL
 
   ; Build acceleration table (backgroundcolor)
-  lea               COLORBACKGROUNDACCELERATION(PC),a0
-  move.w            COLOR1VALUE,d0
-  move.w            #$FFF,d1
-  move.w            #7,d7
-  jsr               buildcolortable
+  ;lea               COLORBACKGROUNDACCELERATION(PC),a0
+  ;move.w            COLOR1VALUE,d0
+  ;move.w            #$FFF,d1
+  ;move.w            #7,d7
+  ;jsr               buildcolortable
+  lea               COLORBACKGROUNDACCELERATION,a1
+  adda.w            #12,a0
+  moveq             #7-1,d7
+  jsr               BUILDCOLORTABLEMAP_SMALL
 
   ; Stop creating color table
 
@@ -1279,6 +1317,7 @@ cordicincreaseangle:
 CORDINCEND:
     rts
 
+  IFD LOL
 buildcolortable:
     move.l a0,a1 ; pointer to the output color table (be sure to allocate enough space)
     move.w d0,d2       ; save start value to d2 to manipulate
@@ -1392,6 +1431,7 @@ buildcolortableloopred:
     dbra d7,buildcolortableloopred
 
     rts
+    ENDC
 Restore_all:
   move.l            SaveIRQ,$6c
   move.w            #$7fff,$dff09a
@@ -1429,6 +1469,8 @@ Name:                 dc.b "graphics.library",0
 
 	include "AProcessing/libs/rasterizers/processing_bitplanes_fast.s"
 	include "AProcessing/libs/math/atan2_pi_128.s"
+  ATAN2_128_QUADRANT: dcb.b 4096,0
+  include "AProcessing/libs/precalc/precalc_col_table_small.s"
 
 ;----------------------------------------------------------------
 
