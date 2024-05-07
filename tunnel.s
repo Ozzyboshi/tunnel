@@ -426,6 +426,8 @@ coploop:
   moveq             #7-1,d7
   jsr               BUILDCOLORTABLEMAP_SMALL
 
+  lea               COLORBEATACCELERATION3,a1
+
   ; Build acceleration table (backgroundcolor)
   ;lea               COLORBACKGROUNDACCELERATION(PC),a0
   ;move.w            COLOR1VALUE,d0
@@ -735,15 +737,14 @@ noresetcolorptr:
   move.l COLORBEATACCELERATIONPTR,a5
   cmp.l #COLORBEATACCELERATIONPTREND,a5
   bne.s nocolorbeataccelerationreset
-  move.w COLORBEATACCELERATIONPTRSTART,COLORBEATACCELERATIONPTR
-  move.w COLORBEATACCELERATIONPTRSTART,a5
+  move.l #COLORBEATACCELERATIONPTRSTART,COLORBEATACCELERATIONPTR
+  lea   COLORBEATACCELERATIONPTRSTART,a5
 nocolorbeataccelerationreset
+  ;DEBUG 1111
   move.w            0(a5,d5),COLOR2
   lea               COLORBACKGROUNDACCELERATION(PC),a5
   move.w            0(a5,d5),COLOR1
-  ;move.w            0(a5,d5),$dff186
 
-  ;add.w            #$222,$dff186
 noaddvelocity:
   bra.s             loadbitplanes
 
@@ -791,6 +792,7 @@ txtnoreset:
   ; go to next beatcolortable
   addi.l            #96,COLORTABLEPTR
   addi.l            #16,COLORBEATACCELERATIONPTR
+  ; DEBUG 1112
 
 nochangeeffect
 
