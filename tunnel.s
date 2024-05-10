@@ -12,77 +12,15 @@ RATIOY EQU 4
 FONTCOLOR EQU $0FF0
 
 LSBANK_HEADER EQU 0
+COLOR1VALUE EQU $A80
 
 DEBUG MACRO
   clr.w                  $100
   move.w                 #$\1,d3
   ENDM
 
-; IF_1_GREATER_2_W_S - Check if a data in signed word format is greater of another value
-; Input:
-;   - first parameter.w: number to check
-;   - second paramter.w: number to check
-;   - third parameter: label to jump if condition is false
-;   - fourth parameter: size of the jump (s,w)
-; Output:
-;   - nothing
-; Trashes:
-;   Nothing
-IF_1_GREATER_2_W_S MACRO
-    IFC '','\1'
-    fail missing first operand!
-    MEXIT
-    ENDC
-    IFC '','\2'
-    fail missing second operand!
-    MEXIT
-    ENDC
-    IFC '','\3'
-    fail missing label to jump
-    MEXIT
-    ENDC
-    IFNC 'w','\4'
-    IFNC 's','\4'
-    fail jump size unknown
-    MEXIT
-    ENDC
-    ENDC
-    cmp.w               \1,\2
-    bge.\4              \3
-    ENDM
-
-; IF_1_LESS_EQ_2_W_U - Check if a data in unsigned word format is LESS of another value
-; Input:
-;   - first parameter.w: number to check
-;   - second paramter.w: number to check
-;   - third parameter: label to jump if condition is false
-;   - fourth parameter: size of the jump (s,w)
-; Output:
-;   - nothing
-; Trashes:
-;   Nothing
-IF_1_LESS_EQ_2_W_U MACRO
-    IFC '','\1'
-    fail missing first operand!
-    MEXIT
-    ENDC
-    IFC '','\2'
-    fail missing second operand!
-    MEXIT
-    ENDC
-    IFC '','\3'
-    fail missing label to jump
-    MEXIT
-    ENDC
-    IFNC 'w','\4'
-    IFNC 's','\4'
-    fail jump size unknown
-    MEXIT
-    ENDC
-    ENDC
-    cmp.w               \1,\2
-    bcs.\4              \3
-    ENDM
+  include "AProcessing/libs/math/operations.s"
+  include "AProcessing/libs/math/sin_256_word_q_8_8_autogen_macro.s"
 
 SETBITPLANE MACRO
                         IFD                         USE_DBLBUF
@@ -169,27 +107,6 @@ PRINT_PIXELS MACRO
   move.w            d1,(a5)+
   ENDM
 
-PROTON_SINUS MACRO
-makesinus:      lea sinus+512(pc),a0
-                move.l a0,a3
-                lea 1026(a3),a1
-                move.l a1,a2
-                move.w #255,d0
-.gen:           move.w d0,d1
-                move.w d0,d2
-                add.w d1,d1
-                mulu d2,d2
-                lsr.w #8,d2
-                sub.w d2,d1
-                move.w d1,-(a3)
-                move.w d1,(a0)+
-                neg.w d1
-                move.w d1,-(a1)
-                move.w d1,(a2)+
-                dbf d0,.gen
-  ENDM
-
-
   ; Place addr in d0 and the copperlist pointer addr in a1 before calling
 POINTINCOPPERLIST MACRO
   move.w              d5,6(a5)
@@ -241,7 +158,7 @@ COLORSTUNNEL:
     dc.w $0F,$00,$00,$00,$00,$00 ; from black to red
     dc.w $00,$00,$0F,$00,$00,$07 ; from green to dark blue
     dc.w $0F,$00,$0F,$07,$00,$07 ; yellow gradient
-    
+
     dc.w $0F,$0F,$0F,$00,$0F,$00 ; start of transition colors
     dc.w $0F,$00,$0F,$0F,$0F,$00
     dc.w $0F,$0F,$0F,$0F,$0F,$00
@@ -260,7 +177,6 @@ COLORTABLE:       dcb.w 48,0
 COLORTABLE2:      dcb.w 48,0
 COLORTABLE3:      dcb.w 48,0
 COLORTABLEPTREND:
-COLOR1VALUE:      dc.w $A80
 
 COLORBEATACCELERATIONPTRSTART:
 COLORBEATACCELERATION: dcb.w 8,0
@@ -270,9 +186,9 @@ COLORBEATACCELERATIONPTREND:
 
 COLORBACKGROUNDACCELERATION: dcb.w 8,0
 
-  include "deg2raddivpi2.i"
-  include "musicilario/LightSpeedPlayer_Micro.asm"
-  include "musicilario/LightSpeedPlayer_cia.asm"
+  include           "deg2raddivpi2.i"
+  include           "musicilario/LightSpeedPlayer_Micro.asm"
+  include           "musicilario/LightSpeedPlayer_cia.asm"
 
 Inizio:
   jsr               Save_all
@@ -360,7 +276,7 @@ coploop:
   ; Copperlist creation END
 
   ; Color 1 default value
-  move.w            COLOR1VALUE,COLOR1
+  move.w            #COLOR1VALUE,COLOR1
 
   ; Build beat table
   ;move.w            #0,d0
@@ -714,8 +630,6 @@ tunnelend:
   move.l            #COLORTABLEPTRSTART,COLORTABLEPTR
   move.l            COLORTABLEPTR,a5
 noresetcolorptr:
-  ;move.l            (a5),a5
-  ;lea               COLORTABLE(PC),a5
   btst              #0,Lsp_Beat+1
   beq.s             colorcycle        ; if no beat we the beat color must return to the original state according to colortable
 
@@ -733,14 +647,12 @@ noresetcolorptr:
   move.w            BEAT_COUNTER,d5
   subi.w            #22,d5
   add.w             d5,d5
-  ;lea               COLORBEATACCELERATION(PC),a5
-  move.l COLORBEATACCELERATIONPTR,a5
-  cmp.l #COLORBEATACCELERATIONPTREND,a5
-  bne.s nocolorbeataccelerationreset
-  move.l #COLORBEATACCELERATIONPTRSTART,COLORBEATACCELERATIONPTR
-  lea   COLORBEATACCELERATIONPTRSTART,a5
-nocolorbeataccelerationreset
-  ;DEBUG 1111
+  move.l            COLORBEATACCELERATIONPTR,a5
+  cmp.l             #COLORBEATACCELERATIONPTREND,a5
+  bne.s             nocolorbeataccelerationreset
+  move.l            #COLORBEATACCELERATIONPTRSTART,COLORBEATACCELERATIONPTR
+  lea               COLORBEATACCELERATIONPTRSTART,a5
+nocolorbeataccelerationreset:
   move.w            0(a5,d5),COLOR2
   lea               COLORBACKGROUNDACCELERATION(PC),a5
   move.w            0(a5,d5),COLOR1
@@ -787,12 +699,11 @@ txtnoreset:
   move.w            #1,BEAT_COUNTER
   move.w            #TUNNEL_MIN_VELOCITY,TUNNEL_VELOCITY ; reset tunnel velocity
   ; reset colors
-  move.w            COLOR1VALUE,COLOR1
+  move.w            #COLOR1VALUE,COLOR1
   move.w            #$0,$dff186
   ; go to next beatcolortable
   addi.l            #96,COLORTABLEPTR
   addi.l            #16,COLORBEATACCELERATIONPTR
-  ; DEBUG 1112
 
 nochangeeffect
 
@@ -887,54 +798,6 @@ movespritey:
   swap              d7
 
   rts
-
-; Routine to generate a XOR texture
-  IFD LOL
-XOR_TEXTURE:
-  ;for(int y = 0; y < texHeight; y++)
-  ;for(int x = 0; x < texWidth; x++)
-  ;{
-  ;  texture[y][x] = (x * 256 / texWidth) ^ (y * 256 / texHeight);
-  ;}
-  lea               TEXTURE_DATA(PC),a2
-  lea               TEXTURE_DATA_2(PC),a3
-  lea               TEXTURE_DATA_3(PC),a4
-  lea               TEXTURE_DATA_4(PC),a5
-  clr.w             d0
-  clr.w             d1
-
-  ; y cycle start   for(int y = 0; y < texHeight; y++)
-  moveq             #TEXTURE_SIZE-1,d7
-xor_texture_y:
-
-; x cycle start
-  moveq             #TEXTURE_SIZE-1,d6 ; for(int x = 0; x < texWidth; x++)
-xor_texture_x:
-
-  ; execute eor
-  move.w            d0,d5
-  eor.w             d1,d5
-
-  ; if d7 > 127 color is 1
-  IF_1_LESS_EQ_2_W_U #TEXTURE_SIZE/2,d5,.notgreater,s
-  clr.b             (a4)+
-  clr.b             (a2)+
-  clr.w             (a3)+
-  clr.w             (a5)+
-  bra.s             .printpoint
-.notgreater:
-  move.b            #$F0,(a4)+
-  move.b            #$0F,(a2)+
-  move.w            #$F000,(a3)+
-  move.w            #$0F00,(a5)+
-.printpoint
-  addq              #1,d0
-  dbra              d6,xor_texture_x
-  clr.w             d0
-  addq              #1,d1
-  dbra              d7,xor_texture_y
-  rts
-  ENDC
 
 SQUARE:
   dc.w 0
@@ -1127,7 +990,7 @@ table_precalc_x:
 qsqrt1:
   addq              #2,d5
   sub.w             d5,d3
-  bpl               qsqrt1
+  bpl.s             qsqrt1
   asr.w             #1,d5
   move.w            d5,d3
   ; end sqrt execution
@@ -1319,121 +1182,6 @@ cordicincreaseangle:
 CORDINCEND:
     rts
 
-  IFD LOL
-buildcolortable:
-    move.l a0,a1 ; pointer to the output color table (be sure to allocate enough space)
-    move.w d0,d2       ; save start value to d2 to manipulate
-    move.w d1,d3       ; save end value to d3 to manupulate
-    moveq #1,d6        ; another counter, this will go from 1 to steps
-
-    ; save d7 in the high part of itself
-    move.w d7,d5
-    swap d7
-    move.w d5,d7
-
-    ; get the BLUE DIFFERENCE
-    andi.w #$F,d2
-    andi.w #$F,d3
-
-    sub.b d3,d2
-
-    lsl.w  #8,d2 ; multiply for dividing later
-    move.w d7,d5
-    addq #1,d5
-    ext.l d2
-    divs  d5,d2  ; d2 is 1 / steps x 256
-
-; loop start
-buildcolortableloopblue:
-    move.w d2,d5
-    muls  d6,d5
-    asr.w #8,d5
-
-    move.w d0,d4
-    andi.w #$f,d4
-    sub.b  d5,d4
-
-    or.w d4,(a1)+
-    addq #1,d6
-    dbra d7,buildcolortableloopblue
-
-    ; get the GREEN DIFFERENCE
-    move.l a0,a1
-    move.w d0,d2
-    move.w d1,d3
-    moveq #1,d6
-    move.l d7,d5
-    swap d5
-    move.w d5,d7
-
-    lsr.w #4,d2
-    lsr.w #4,d3
-    andi.w #$F,d2
-    andi.w #$F,d3
-    sub.b d3,d2
-
-    lsl.w  #8,d2 ; multiply for dividing later
-    move.w d7,d5
-    addq #1,d5
-    ext.l d2
-    divs  d5,d2  ; d2 is 1 / steps x 256
-
-    ; loop start for green
-buildcolortableloopgreen:
-    move.w d2,d5
-    muls  d6,d5
-    asr.w #8,d5
-
-    move.w d0,d4
-    lsr.w #4,d4
-    andi.w #$f,d4
-    sub.b  d5,d4
-
-    lsl.w #4,d4
-    or.w d4,(a1)+
-    addq #1,d6
-    dbra d7,buildcolortableloopgreen
-
-    ; get the RED DIFFERENCE
-    move.l a0,a1
-    move.w d0,d2
-    move.w d1,d3
-    moveq #1,d6
-    move.l d7,d5
-    swap d5
-    move.w d5,d7
-
-    lsr.w #8,d2
-    lsr.w #8,d3
-    andi.w #$F,d2
-    andi.w #$F,d3
-    sub.b d3,d2
-
-    lsl.w  #8,d2 ; multiply for dividing later
-    move.w d7,d5
-    addq #1,d5
-    ext.l d2
-    divs  d5,d2  ; d2 is 1 / steps x 256
-
-    ; loop start for red
-buildcolortableloopred:
-    move.w d2,d5
-    muls  d6,d5
-    asr.w #8,d5
-
-    move.w d0,d4
-    lsr.w #8,d4
-    andi.w #$f,d4
-    sub.b  d5,d4
-
-    lsl.w #8,d4
-    or.w d4,(a1)+
-
-    addq #1,d6
-    dbra d7,buildcolortableloopred
-
-    rts
-    ENDC
 Restore_all:
   move.l            SaveIRQ,$6c
   move.w            #$7fff,$dff09a
@@ -1463,15 +1211,15 @@ TEXTURE_DATA_4:
 TRANSFORMATION_TABLE_DISTANCE:
   dcb.w SCREEN_RES_X*2*SCREEN_RES_Y*2,0
 ;---------------------------------------------------------------
+ATAN2_128_QUADRANT: dcb.b 4096,0
 Saveint:              dc.w 0
 SaveDMA:              dc.w 0
 SaveIRQ:              dc.l 0
 Name:                 dc.b "graphics.library",0
   even
 
-	include "AProcessing/libs/rasterizers/processing_bitplanes_fast.s"
 	include "AProcessing/libs/math/atan2_pi_128.s"
-  ATAN2_128_QUADRANT: dcb.b 4096,0
+	include "AProcessing/libs/rasterizers/processing_bitplanes_fast.s"
   include "AProcessing/libs/precalc/precalc_col_table_small.s"
 
 ;----------------------------------------------------------------
