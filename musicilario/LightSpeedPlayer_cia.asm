@@ -75,20 +75,20 @@ LSP_MusicDriver_CIA_Start:
 			move.b	d1,$500(a0)
 			move.b	#$83,$d00(a0)
 			move.b	#$11,$e00(a0)
-			
+
 			move.b	#496&255,$600(a0)		; set timer b to 496 ( to set DMACON )
 			move.b	#496>>8,$700(a0)
 
 			move.w 	#(1<<13),$dff09c		; clear any req CIA
 			move.w 	#$a000,$dff09a			; CIA interrupt enabled
 			rts
-		
+
 .palClocks:	dc.l	1773447,1789773
 
 .LSP_MainIrq:
 			btst.b	#0,$bfdd00
 			beq.s	.skipa
-			
+
 			movem.l	d0-a6,-(a7)
 
 		; call player tick
@@ -100,13 +100,13 @@ LSP_MusicDriver_CIA_Start:
 			move.w	(a0),d0					; current music BPM
 			cmp.w	.curBpm(pc),d0
 			beq.s	.noChg
-			lea		.curBpm(pc),a2			
+			lea		.curBpm(pc),a2
 			move.w	d0,(a2)					; current BPM
 			move.l	.ciaClock(pc),d1
 			divu.w	d0,d1
 			move.b	d1,$bfd400
 			lsr.w 	#8,d1
-			move.b	d1,$bfd500			
+			move.b	d1,$bfd500
 
 .noChg:		lea		.LSP_DmaconIrq(pc),a0
 			move.l	.irqVector(pc),a1

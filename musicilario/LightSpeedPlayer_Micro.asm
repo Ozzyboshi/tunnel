@@ -56,7 +56,7 @@ LSP_MusicInitMicro:
 			move.l	(a0)+,d1
 			add.l	a1,d1
 			move.l	d1,m_loopStreams-m_streams(a2)		; set loopStreams at 0 by default
-			move.l	d1,(a2)+				
+			move.l	d1,(a2)+
 		endr
 			bset.b	#1,$bfe001				; disabling this fucking Low pass filter!!
 			move.l	(a7)+,a0				; point on default BPM value (to please LightSpeedPlayer_cia.asm)

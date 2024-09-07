@@ -175,7 +175,102 @@ COLORBEATACCELERATIONPTREND:
 
 COLORBACKGROUNDACCELERATION: dcb.w 8,0
 
-  include           "deg2raddivpi2.i"
+DEG2RADDIVPI2: dcb.b 92,0
+RAG2DEVSOURCE:
+    dc.w 0 ; 0 deg / 0.000000
+    dc.w 2 ; 1 deg / 0.005556
+    dc.w 3 ; 2 deg / 0.011111
+    dc.w 3 ; 3 deg / 0.016667
+    dc.w 3 ; 4 deg / 0.022222
+    dc.w 3 ; 5 deg / 0.027778
+    dc.w 3 ; 6 deg / 0.033333
+    dc.w 2 ; 7 deg / 0.038889
+    dc.w 3 ; 8 deg / 0.044444
+    dc.w 3 ; 9 deg / 0.050000
+    dc.w 3 ; 10 deg / 0.055556
+    dc.w 3 ; 11 deg / 0.061111
+    dc.w 3 ; 12 deg / 0.066667
+    dc.w 2 ; 13 deg / 0.072222
+    dc.w 3 ; 14 deg / 0.077778
+    dc.w 3 ; 15 deg / 0.083333
+    dc.w 3 ; 16 deg / 0.088889
+    dc.w 3 ; 17 deg / 0.094444
+    dc.w 3 ; 18 deg / 0.100000
+    dc.w 3 ; 19 deg / 0.105556
+    dc.w 2 ; 20 deg / 0.111111
+    dc.w 3 ; 21 deg / 0.116667
+    dc.w 3 ; 22 deg / 0.122222
+    dc.w 3 ; 23 deg / 0.127778
+    dc.w 3 ; 24 deg / 0.133333
+    dc.w 3 ; 25 deg / 0.138889
+    dc.w 2 ; 26 deg / 0.144444
+    dc.w 3 ; 27 deg / 0.150000
+    dc.w 3 ; 28 deg / 0.155556
+    dc.w 3 ; 29 deg / 0.161111
+    dc.w 3 ; 30 deg / 0.166667
+    dc.w 3 ; 31 deg / 0.172222
+    dc.w 3 ; 32 deg / 0.177778
+    dc.w 2 ; 33 deg / 0.183333
+    dc.w 3 ; 34 deg / 0.188889
+    dc.w 3 ; 35 deg / 0.194444
+    dc.w 3 ; 36 deg / 0.200000
+    dc.w 3 ; 37 deg / 0.205556
+    dc.w 3 ; 38 deg / 0.211111
+    dc.w 2 ; 39 deg / 0.216667
+    dc.w 3 ; 40 deg / 0.222222
+    dc.w 3 ; 41 deg / 0.227778
+    dc.w 3 ; 42 deg / 0.233333
+    dc.w 3 ; 43 deg / 0.238889
+    dc.w 3 ; 44 deg / 0.244444
+    dc.w 3 ; 45 deg / 0.250000
+    dc.w 2 ; 46 deg / 0.255556
+    dc.w 3 ; 47 deg / 0.261111
+    dc.w 3 ; 48 deg / 0.266667
+    dc.w 3 ; 49 deg / 0.272222
+    dc.w 3 ; 50 deg / 0.277778
+    dc.w 3 ; 51 deg / 0.283333
+    dc.w 2 ; 52 deg / 0.288889
+    dc.w 3 ; 53 deg / 0.294444
+    dc.w 3 ; 54 deg / 0.300000
+    dc.w 3 ; 55 deg / 0.305556
+    dc.w 3 ; 56 deg / 0.311111
+    dc.w 3 ; 57 deg / 0.316667
+    dc.w 2 ; 58 deg / 0.322222
+    dc.w 3 ; 59 deg / 0.327778
+    dc.w 3 ; 60 deg / 0.333333
+    dc.w 3 ; 61 deg / 0.338889
+    dc.w 3 ; 62 deg / 0.344444
+    dc.w 3 ; 63 deg / 0.350000
+    dc.w 3 ; 64 deg / 0.355556
+    dc.w 2 ; 65 deg / 0.361111
+    dc.w 3 ; 66 deg / 0.366667
+    dc.w 3 ; 67 deg / 0.372222
+    dc.w 3 ; 68 deg / 0.377778
+    dc.w 3 ; 69 deg / 0.383333
+    dc.w 3 ; 70 deg / 0.388889
+    dc.w 2 ; 71 deg / 0.394444
+    dc.w 3 ; 72 deg / 0.400000
+    dc.w 3 ; 73 deg / 0.405556
+    dc.w 3 ; 74 deg / 0.411111
+    dc.w 3 ; 75 deg / 0.416667
+    dc.w 3 ; 76 deg / 0.422222
+    dc.w 3 ; 77 deg / 0.427778
+    dc.w 2 ; 78 deg / 0.433333
+    dc.w 3 ; 79 deg / 0.438889
+    dc.w 3 ; 80 deg / 0.444444
+    dc.w 3 ; 81 deg / 0.450000
+    dc.w 3 ; 82 deg / 0.455556
+    dc.w 3 ; 83 deg / 0.461111
+    dc.w 2 ; 84 deg / 0.466667
+    dc.w 3 ; 85 deg / 0.472222
+    dc.w 3 ; 86 deg / 0.477778
+    dc.w 3 ; 87 deg / 0.483333
+    dc.w 3 ; 88 deg / 0.488889
+    dc.w 3 ; 89 deg / 0.494444
+    dc.w 2 ; 90 deg / 0.500000
+
+
+  ;include           "deg2raddivpi2.i"
   include           "musicilario/LightSpeedPlayer_Micro.asm"
   include           "musicilario/LightSpeedPlayer_cia.asm"
 
@@ -197,6 +292,18 @@ Inizio:
 
   move.w            d0,$1fc(a6)                                                    ; FMODE - NO AGA
   move.w            #$c00,$106(a6)                                                 ; BPLCON3 - NO AGA
+
+  ; build the degrees to radians table
+  lea               DEG2RADDIVPI2(PC),a0
+  lea               92(a0),a1
+  moveq             #90,d7
+  moveq             #0,d1
+looprag2:
+  move.w            (a1)+,d0
+  add.w             d1,d0
+  move.b            d0,(a0)+
+  move.w            d0,d1
+  dbra              d7,looprag2
 
   ; Copperlist creation START
   lea               SpritePointers,a0
@@ -331,7 +438,7 @@ coploop:
   moveq             #7-1,d7
   jsr               BUILDCOLORTABLEMAP_SMALL
 
-  lea               COLORBEATACCELERATION3,a1
+  lea               COLORBEATACCELERATION3,a1 ; do not remove this, will help shrinkler to save 4 bytes
 
   ; Build acceleration table (backgroundcolor)
   ;lea               COLORBACKGROUNDACCELERATION(PC),a0
@@ -1150,18 +1257,13 @@ Name:                 dc.b "graphics.library",0
 	include "AProcessing/libs/math/atan2_pi_128.s"
 	include "AProcessing/libs/rasterizers/processing_bitplanes_fast.s"
   include "AProcessing/libs/precalc/precalc_col_table_small.s"
+  include "AProcessing/libs/copperlistmacros.i"
 
 ;----------------------------------------------------------------
 
 ; **************************************************************************
 ; *				SUPER COPPERLIST			   *
 ; **************************************************************************
-
-; Single playfield mode
-COPSET2BPL MACRO
-  dc.w       $100
-  dc.w       %0010001000000000
-  ENDM
 
   SECTION    GRAPHIC,DATA_C
 
